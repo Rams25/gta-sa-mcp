@@ -1,0 +1,9 @@
+build/
+out/
+dist/
+.vs/
+node_modules/
+*.asi
+*.dll
+*.pdb
+*.log

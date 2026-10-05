@@ -1,0 +1,16 @@
+{
+  "name": "gta-sa-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that lets an AI agent observe, drive and edit GTA: San Andreas through the gta-sa-mcp.asi plugin",
+  "type": "module",
+  "bin": {
+    "gta-sa-mcp": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
