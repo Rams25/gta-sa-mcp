@@ -29,12 +29,14 @@ add_library(gta-sa-mcp SHARED
 	asi/src/core/ipc.cpp
 	asi/src/core/log.cpp
 	asi/src/core/memory.cpp
+	asi/src/game/assets.cpp
 	asi/src/game/camera.cpp
 	asi/src/game/catalog.cpp
 	asi/src/game/sdk.cpp
 	asi/src/render/capture.cpp
 	asi/src/render/window.cpp
 	asi/src/editor/scene.cpp
+	asi/src/commands/assets.cpp
 	asi/src/commands/camera.cpp
 	asi/src/commands/capture.cpp
 	asi/src/commands/common.cpp

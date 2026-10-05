@@ -31,6 +31,7 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID)
 	RegisterModelCommands();
 	RegisterObjectCommands();
 	RegisterCaptureCommands();
+	RegisterAssetCommands();
 
 	bootstrap::Install();
 	window::Install();

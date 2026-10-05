@@ -4,6 +4,7 @@
 #include "dispatcher.hpp"
 #include "log.hpp"
 #include "memory.hpp"
+#include "../game/assets.hpp"
 #include "../game/sdk.hpp"
 
 #include <windows.h>
@@ -151,6 +152,7 @@ void __cdecl OnGameProcess()
 	if (!game::PlayerPed())
 		return;
 	KeepWorldQuiet();
+	game::assets::Tick();
 	dispatcher::PumpTick();
 }
 

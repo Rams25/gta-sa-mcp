@@ -16,6 +16,7 @@ void RegisterWorldCommands();
 void RegisterModelCommands();
 void RegisterObjectCommands();
 void RegisterCaptureCommands();
+void RegisterAssetCommands();
 
 namespace cmd
 {

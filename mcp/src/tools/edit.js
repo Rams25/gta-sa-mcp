@@ -71,6 +71,23 @@ export default [
         { enum: ['json', 'pawn', 'ipl'] }),
     }),
 
+  tool('load_model',
+    'Hot reload: replaces the geometry (DFF), textures (TXD) and/or collision (COL) of a model with files on ' +
+    'disk, without restarting the game. Every instance of the model in the world shows the new version on the ' +
+    'next frame. Use it to check a model exported from a 3D tool in the real game, then export and reload again.',
+    {
+      model,
+      dff: string('Absolute path of the .dff file (the model itself).'),
+      txd: string('Absolute path of the .txd file holding the textures the DFF names.'),
+      col: string('Absolute path of a .col file (COL2 or COL3) holding one collision model.'),
+    },
+    ['model']),
+
+  tool('restore_model',
+    'Undoes load_model: the geometry and textures of the model come from the game archives again.',
+    { model },
+    ['model']),
+
   tool('load_changes',
     'Recreates the objects of a scene saved with save_changes. One undo reverts the whole load.',
     {
