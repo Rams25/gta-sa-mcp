@@ -3,6 +3,7 @@
 #include "../core/config.hpp"
 #include "../core/log.hpp"
 #include "../core/memory.hpp"
+#include "../game/sdk.hpp"
 
 #include <windows.h>
 #include <d3d9.h>
@@ -35,24 +36,29 @@ void ForceWindowed(D3DPRESENT_PARAMETERS* params)
 	params->FullScreen_RefreshRateInHz = 0; // must be 0 for a windowed device
 }
 
-// A titled window whose client area is exactly the back buffer.
+// A borderless window of exactly the back buffer's size. With a title bar the game, which sizes
+// its windowed back buffer from the whole window, would render a few pixels off.
 void FitWindow(const D3DPRESENT_PARAMETERS* params)
 {
 	if (!g_window || !params || !params->BackBufferWidth || !params->BackBufferHeight)
 		return;
 	const Config& config = GetConfig();
 
-	const LONG style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_VISIBLE;
-	SetWindowLongW(g_window, GWL_STYLE, style);
-	RECT rect { 0, 0, static_cast<LONG>(params->BackBufferWidth), static_cast<LONG>(params->BackBufferHeight) };
-	AdjustWindowRect(&rect, static_cast<DWORD>(style), FALSE);
-	SetWindowPos(g_window, HWND_NOTOPMOST, config.x, config.y, rect.right - rect.left, rect.bottom - rect.top,
+	SetWindowLongW(g_window, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+	SetWindowPos(g_window, HWND_NOTOPMOST, config.x, config.y,
+		static_cast<int>(params->BackBufferWidth), static_cast<int>(params->BackBufferHeight),
 		SWP_FRAMECHANGED | (config.noActivate ? SWP_NOACTIVATE : 0u));
 }
 
 HRESULT STDMETHODCALLTYPE OnReset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* params)
 {
 	ForceWindowed(params);
+	// The resolution the game renders at, whatever size its window happens to have.
+	if (params && game::ScreenWidth() > 0 && game::ScreenHeight() > 0)
+	{
+		params->BackBufferWidth = static_cast<UINT>(game::ScreenWidth());
+		params->BackBufferHeight = static_cast<UINT>(game::ScreenHeight());
+	}
 	const HRESULT result = g_reset(device, params);
 	if (SUCCEEDED(result))
 		FitWindow(params);

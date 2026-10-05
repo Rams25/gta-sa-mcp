@@ -108,7 +108,6 @@ void CreatePlayer()
 
 	At<std::uint8_t>(0xB70153) = 12; // noon
 	At<std::uint8_t>(0xB70152) = 0;
-	At<bool>(kMenuManager + 0x21) = config.hud; // m_bHudOn
 	g_fadeTicks = 120;
 	Log("Player created: sandbox world ready.");
 }
@@ -132,10 +131,12 @@ void KeepWorldQuiet()
 	if (ped && config.invincible)
 		Field<std::uint8_t>(ped, 0x42) |= 0xFC; // bullet, fire, collision, melee, all, explosion proof
 
-	// The new-game sequence leaves the screen faded to black; the mission script normally fades it in.
+	// The new-game sequence leaves the screen faded to black (the mission script normally fades it
+	// in) and reloads the player's display settings: undo both during the first seconds.
 	if (g_fadeTicks > 0)
 	{
 		--g_fadeTicks;
+		At<bool>(kMenuManager + 0x21) = config.hud; // m_bHudOn
 		reinterpret_cast<void (__thiscall*)(void*, float, short)>(0x50AC20)(reinterpret_cast<void*>(kTheCamera), 0.0f, 1); // CCamera::Fade(in)
 	}
 }
