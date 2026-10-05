@@ -137,6 +137,8 @@ void KeepWorldQuiet()
 	{
 		--g_fadeTicks;
 		game::ShowHud(config.hud);
+		// "Respect lost...": the stats reset of a new game announces itself. CHud::SetHelpMessage(none).
+		reinterpret_cast<void (__cdecl*)(const char*, bool, bool, bool)>(0x588BE0)(nullptr, true, false, false);
 		reinterpret_cast<void (__thiscall*)(void*, float, short)>(0x50AC20)(reinterpret_cast<void*>(kTheCamera), 0.0f, 1); // CCamera::Fade(in)
 	}
 }
