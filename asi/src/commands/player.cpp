@@ -62,13 +62,11 @@ json Teleport(const json& params)
 	if (params.contains("heading") && params["heading"].is_number())
 	{
 		const float heading = game::Rad(params["heading"].get<float>());
-		if (vehicle)
+		if (game::Matrix* matrix = game::entity::GetMatrix(body))
+			game::SetRotation(*matrix, { 0.0f, 0.0f, game::Deg(heading) });
+		if (!vehicle)
 		{
-			if (game::Matrix* matrix = game::entity::GetMatrix(vehicle))
-				game::SetRotation(*matrix, { 0.0f, 0.0f, game::Deg(heading) });
-		}
-		else
-		{
+			// A ped's matrix follows these two every frame.
 			game::Field<float>(ped, 0x558) = heading; // m_fCurrentRotation
 			game::Field<float>(ped, 0x55C) = heading; // m_fAimingRotation
 		}

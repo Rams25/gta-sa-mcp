@@ -136,7 +136,7 @@ void KeepWorldQuiet()
 	if (g_fadeTicks > 0)
 	{
 		--g_fadeTicks;
-		At<bool>(kMenuManager + 0x21) = config.hud; // m_bHudOn
+		game::ShowHud(config.hud);
 		reinterpret_cast<void (__thiscall*)(void*, float, short)>(0x50AC20)(reinterpret_cast<void*>(kTheCamera), 0.0f, 1); // CCamera::Fade(in)
 	}
 }

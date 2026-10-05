@@ -56,11 +56,15 @@ comme erreur `game_exception` : la requête échoue, le jeu continue.
 | --- | --- |
 | `0x748A8D`, `0x53BC78` | pas de pause ni de menu quand la fenêtre perd le focus |
 | `0x6194A0` | `RsMouseSetPos` neutralisé : le jeu ne recentre plus la souris du bureau |
-| `0x748B17` | passe les états « vidéo » (logo, intro) |
+| `0x748B00`, `0x748BF9`, `0x748B17` | les vidéos (logo, intro) ne sont pas jouées et leurs états sont passés ; les fondus des écrans sponsors sont supprimés |
 | `0x748CC2` | au menu principal, déclenche « nouvelle partie » comme le ferait le menu |
-| `0x53BFC7` | remplace `CTheScripts::Process` : crée le joueur à la place de `main.scm` |
+| `0x53BCC9`, `0x53BE8D`, `0x53BFC7` | remplacent `CTheScripts::Process` (au chargement puis à chaque image) : le joueur est créé par le plugin à la place de `main.scm` |
 
 Rien de tout cela n'est installé si `samp.dll` est chargé.
+
+Le mode fenêtré passe par `CreateWindowExA` (import de l'exe) : à la création de la fenêtre, le plugin
+crée un `IDirect3D9` à lui pour patcher la vtable partagée (`CreateDevice`, puis `Reset` du device). Le
+jeu résout `Direct3DCreate9` lui-même, sans import remplaçable.
 
 ### Caméra
 
@@ -97,6 +101,8 @@ un bloc `image`.
 
 ## Limites connues
 
+- Dans le bac à sable, le joueur existe (position, collisions, streaming) mais son modèle n'est pas
+  affiché : les vêtements de CJ sont normalement construits par `main.scm`.
 - Une seule version du jeu : 1.0 US. Sur un autre exécutable, les hooks ne s'installent pas (voir
   `gta-sa-mcp.log`).
 - La taille de la fenêtre suit la résolution choisie dans le jeu ; elle n'est pas encore réglable par l'ini.

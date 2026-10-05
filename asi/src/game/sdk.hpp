@@ -87,6 +87,14 @@ inline int ScreenHeight() { return At<int>(0xC17048); } // RsGlobal.maximumHeigh
 inline void* PlayerPed() { return reinterpret_cast<void* (__cdecl*)(int)>(0x56E210)(-1); }
 inline void* PlayerVehicle() { return reinterpret_cast<void* (__cdecl*)(int, bool)>(0x56E0D0)(-1, false); }
 
+// Radar, health, money, zone names. (The menu's own "HUD" option only hides part of it.)
+inline bool HudShown() { return At<bool>(0xA444A0); } // CTheScripts::bDisplayHud
+inline void ShowHud(bool show)
+{
+	At<bool>(0xA444A0) = show;
+	At<bool>(0xBAA3FB) = !show; // CHud::bScriptDontDisplayRadar
+}
+
 // True once the menus can be drawn (a frame hook runs).
 inline bool RenderReady() { return RwInitialized() && GameState() >= 7; }
 // True once the world is simulated and the player exists.

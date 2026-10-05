@@ -148,13 +148,13 @@ json SetWorld(const json& params)
 	if (params.contains("weather"))
 		reinterpret_cast<void (__cdecl*)(short)>(0x72A4F0)(static_cast<short>(params["weather"].get<int>())); // CWeather::ForceWeatherNow
 	if (params.contains("hud"))
-		game::At<bool>(0xBA6769) = params["hud"].get<bool>(); // FrontEndMenuManager.m_bHudOn
+		game::ShowHud(params["hud"].get<bool>());
 
 	return {
 		{ "hour", game::At<std::uint8_t>(0xB70153) },
 		{ "minute", game::At<std::uint8_t>(0xB70152) },
 		{ "weather", game::At<short>(0xC81320) }, // CWeather::OldWeatherType
-		{ "hud", game::At<bool>(0xBA6769) },
+		{ "hud", game::HudShown() },
 	};
 }
 

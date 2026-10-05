@@ -15,11 +15,11 @@ Boucle visée : **observer → capturer → analyser → placer/modifier → vé
 
 ## Ce que fait le plugin
 
-- **Quasi-headless** : fenêtre (pas de plein écran), rendu actif même sans le focus, ne prend ni la
-  souris ni le clavier du bureau ; la fenêtre peut être placée hors écran (`x=-3000`).
+- **Quasi-headless** : fenêtre sans bordure (pas de plein écran), rendu actif même sans le focus, ne
+  prend ni la souris ni le clavier du bureau ; la fenêtre peut être placée hors écran (`x=-3000`).
 - **Démarrage sans intervention** : vidéos d'intro passées, nouvelle partie lancée toute seule, monde
-  « bac à sable » (pas de `main.scm`, pas de trafic, joueur invincible, HUD masqué). Tout est réglable
-  dans `gta-sa-mcp.ini`.
+  « bac à sable » (pas de `main.scm`, pas de trafic, joueur invincible et non affiché, HUD masqué).
+  Tout est réglable dans `gta-sa-mcp.ini`.
 - **Sous SA-MP**, le plugin n'automatise rien (démarrage, scripts, joueur) : il se contente d'observer
   et d'éditer.
 
