@@ -5,6 +5,7 @@
 #include "../game/sdk.hpp"
 
 #include <windows.h>
+#include <float.h>
 
 #include <atomic>
 #include <chrono>
@@ -91,7 +92,13 @@ DWORD RunGuarded(const Command& command, const json& params, Outcome& out)
 
 void Run(const Command& command, const json& params, Outcome& out)
 {
+	// Direct3D leaves the game thread's FPU in single precision, which would round every double we
+	// compute (12.344 would be sent as 12.343999862670898). Full precision while a command runs.
+	unsigned int saved = 0, ignored = 0;
+	_controlfp_s(&saved, 0, 0);
+	_controlfp_s(&ignored, _PC_53, _MCW_PC);
 	const DWORD exception = RunGuarded(command, params, out);
+	_controlfp_s(&ignored, saved & _MCW_PC, _MCW_PC);
 	if (exception == 0)
 		return;
 	char text[96];

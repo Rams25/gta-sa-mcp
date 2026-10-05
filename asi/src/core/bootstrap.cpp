@@ -215,7 +215,11 @@ void Install()
 
 	if (!config.scripts)
 	{
+		// Every place the game runs the mission script: twice while a game starts (which is when
+		// main.scm creates the player and launches the intro), then once per frame.
 		std::uintptr_t unused = 0;
+		Hook(0x53BCC9, OnScripts, unused, "scripts (init)");
+		Hook(0x53BE8D, OnScripts, unused, "scripts (restart)");
 		Hook(0x53BFC7, OnScripts, unused, "scripts");
 	}
 	Log("Game hooks installed.");
