@@ -20,7 +20,9 @@ struct Result
 };
 
 // Any of the three paths may be empty (that part is left as it is). The model must already exist.
-Result Replace(int model, const std::string& dff, const std::string& txd, const std::string& col);
+// `transparent`: the model has see-through parts (glass): draw it after the opaque world, like the
+// game does for models flagged so in their .ide. -1 leaves the model's own setting.
+Result Replace(int model, const std::string& dff, const std::string& txd, const std::string& col, int transparent = -1);
 
 // Gives the model's geometry and textures back to the game's streaming. Its collision returns
 // when the game next reloads the area's collision file.

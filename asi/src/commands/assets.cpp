@@ -24,10 +24,11 @@ json LoadModel(const json& params)
 	const std::string dff = params.value("dff", std::string());
 	const std::string txd = params.value("txd", std::string());
 	const std::string col = params.value("col", std::string());
-	if (dff.empty() && txd.empty() && col.empty())
+	const int transparent = params.contains("transparent") ? (params["transparent"].get<bool>() ? 1 : 0) : -1;
+	if (dff.empty() && txd.empty() && col.empty() && transparent < 0)
 		throw CommandError("bad_params", "give at least one of 'dff', 'txd', 'col' (file paths)");
 
-	const game::assets::Result result = game::assets::Replace(model, dff, txd, col);
+	const game::assets::Result result = game::assets::Replace(model, dff, txd, col, transparent);
 	if (!result.ok)
 		throw CommandError("load_failed", result.error);
 

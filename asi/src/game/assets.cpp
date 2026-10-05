@@ -198,7 +198,7 @@ void Reindex(int model)
 
 }
 
-Result Replace(int model, const std::string& dff, const std::string& txd, const std::string& col)
+Result Replace(int model, const std::string& dff, const std::string& txd, const std::string& col, int transparent)
 {
 	Result result;
 	void* info = model::Info(model);
@@ -245,6 +245,17 @@ Result Replace(int model, const std::string& dff, const std::string& txd, const 
 		entry.col = col;
 		entry.colData = Field<void*>(ModelCol(info), 0x2C);
 		Reindex(model);
+	}
+
+	if (transparent >= 0)
+	{
+		// CBaseModelInfo::bDrawLast, copied to each entity (CEntity::m_bDrawLast) when it is created.
+		std::uint16_t& flags = Field<std::uint16_t>(info, 0x12);
+		flags = static_cast<std::uint16_t>(transparent ? flags | 0x2 : flags & ~0x2);
+		ForEachEntity(model, [&](void* e) {
+			std::uint32_t& entityFlags = Field<std::uint32_t>(e, 0x1C);
+			entityFlags = transparent ? entityFlags | 0x4000u : entityFlags & ~0x4000u;
+		});
 	}
 
 	result.ok = true;

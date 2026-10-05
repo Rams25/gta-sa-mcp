@@ -80,6 +80,8 @@ export default [
       dff: string('Absolute path of the .dff file (the model itself).'),
       txd: string('Absolute path of the .txd file holding the textures the DFF names.'),
       col: string('Absolute path of a .col file (COL2 or COL3) holding one collision model.'),
+      transparent: boolean('The model has see-through parts (glass): draw it after the opaque world so what is ' +
+        'behind the glass stays visible. Equivalent to the "draw last" flag of the .ide.'),
     },
     ['model']),
 
