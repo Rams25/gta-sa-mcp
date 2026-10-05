@@ -33,15 +33,21 @@ int g_fadeTicks = 0;
 
 // ---- Unattended start ------------------------------------------------------------------------
 
-// The two movie states only end on a key press; this is what the key press does.
+// The logo and intro movies are not played at all (starting one and cutting it short leaves the
+// sound system unable to initialise). Their two "playing" states normally end with the movie or a
+// key press: end them right away.
+void __cdecl SkipMovie(int, const char*)
+{
+}
+
 void __cdecl OnIntroUpdatePads()
 {
 	reinterpret_cast<void (__cdecl*)()>(g_updatePads)();
 	int& state = At<int>(0xC8D4C0);
 	if (state == 2)
-		state = 3; // logo movie -> title
+		state = 3; // logo -> title
 	else if (state == 4)
-		state = 5; // intro movie -> load the menu
+		state = 5; // intro -> load the menu
 }
 
 // Main menu, once per frame: choose "New game" as the menu itself does.
@@ -195,7 +201,15 @@ void Install()
 	}
 
 	if (config.skipIntro)
+	{
+		std::uintptr_t play = 0;
+		Hook(0x748B00, SkipMovie, play, "logo movie");
+		Hook(0x748BF9, SkipMovie, play, "intro movie");
 		Hook(0x748B17, OnIntroUpdatePads, g_updatePads, "intro skip");
+		// The two sponsor splash screens: keep them, without their slow fade in and out.
+		for (const std::uintptr_t fade : { 0x748AB6u, 0x748ABBu, 0x748AD4u, 0x748AD9u })
+			mem::Nop(fade, 5);
+	}
 	if (config.autoStart)
 		Hook(0x748CC2, OnFrontendIdle, g_frontendEvent, "auto start");
 

@@ -43,13 +43,6 @@ std::uintptr_t HookCall(std::uintptr_t site, void* target)
 
 void* HookImport(const char* dll, const char* function, void* replacement)
 {
-	// The loader already resolved the imports: find the slot by the address it holds. (Matching on
-	// the import names would miss executables whose name table was stripped.)
-	HMODULE library = GetModuleHandleA(dll);
-	void* resolved = library ? reinterpret_cast<void*>(GetProcAddress(library, function)) : nullptr;
-	if (!resolved)
-		return nullptr;
-
 	auto* base = reinterpret_cast<std::uint8_t*>(GetModuleHandleW(nullptr));
 	const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
 	const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
@@ -59,14 +52,22 @@ void* HookImport(const char* dll, const char* function, void* replacement)
 
 	for (auto* desc = reinterpret_cast<const IMAGE_IMPORT_DESCRIPTOR*>(base + dir.VirtualAddress); desc->Name; ++desc)
 	{
-		if (_stricmp(reinterpret_cast<const char*>(base + desc->Name), dll) != 0)
+		// Matched by name, not by the address in the slot: Windows compatibility shims may already
+		// have replaced that address with their own.
+		if (_stricmp(reinterpret_cast<const char*>(base + desc->Name), dll) != 0 || !desc->OriginalFirstThunk)
 			continue;
-		for (auto* slot = reinterpret_cast<IMAGE_THUNK_DATA*>(base + desc->FirstThunk); slot->u1.Function; ++slot)
+		auto* names = reinterpret_cast<const IMAGE_THUNK_DATA*>(base + desc->OriginalFirstThunk);
+		auto* slots = reinterpret_cast<IMAGE_THUNK_DATA*>(base + desc->FirstThunk);
+		for (; names->u1.AddressOfData; ++names, ++slots)
 		{
-			if (reinterpret_cast<void*>(slot->u1.Function) != resolved)
+			if (IMAGE_SNAP_BY_ORDINAL(names->u1.Ordinal))
 				continue;
+			const auto* byName = reinterpret_cast<const IMAGE_IMPORT_BY_NAME*>(base + names->u1.AddressOfData);
+			if (std::strcmp(byName->Name, function) != 0)
+				continue;
+			void* previous = reinterpret_cast<void*>(slots->u1.Function);
 			const std::uintptr_t value = reinterpret_cast<std::uintptr_t>(replacement);
-			return Write(reinterpret_cast<std::uintptr_t>(&slot->u1.Function), &value, sizeof(value)) ? resolved : nullptr;
+			return Write(reinterpret_cast<std::uintptr_t>(&slots->u1.Function), &value, sizeof(value)) ? previous : nullptr;
 		}
 	}
 	return nullptr;

@@ -14,6 +14,7 @@ namespace
 {
 
 using Direct3DCreate9Fn = IDirect3D9* (WINAPI*)(UINT);
+using CreateWindowExAFn = HWND (WINAPI*)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 using CreateDeviceFn = HRESULT (STDMETHODCALLTYPE*)(IDirect3D9*, UINT, D3DDEVTYPE, HWND, DWORD, D3DPRESENT_PARAMETERS*, IDirect3DDevice9**);
 using ResetFn = HRESULT (STDMETHODCALLTYPE*)(IDirect3DDevice9*, D3DPRESENT_PARAMETERS*);
 
@@ -21,7 +22,7 @@ using ResetFn = HRESULT (STDMETHODCALLTYPE*)(IDirect3DDevice9*, D3DPRESENT_PARAM
 constexpr std::size_t kCreateDevice = 16;
 constexpr std::size_t kReset = 16;
 
-Direct3DCreate9Fn g_create9 = nullptr;
+CreateWindowExAFn g_createWindow = nullptr;
 CreateDeviceFn g_createDevice = nullptr;
 ResetFn g_reset = nullptr;
 HWND g_window = nullptr;
@@ -78,13 +79,37 @@ HRESULT STDMETHODCALLTYPE OnCreateDevice(IDirect3D9* d3d, UINT adapter, D3DDEVTY
 	return result;
 }
 
-IDirect3D9* WINAPI OnDirect3DCreate9(UINT sdkVersion)
+// Every IDirect3D9 of the process shares one vtable: patching it through an object of our own also
+// catches the one the game creates later. (The game resolves Direct3DCreate9 by itself, without an
+// import we could replace.)
+void HookDirect3D()
 {
-	IDirect3D9* d3d = g_create9(sdkVersion);
-	if (d3d)
-		if (void* previous = mem::HookVtable(d3d, kCreateDevice, reinterpret_cast<void*>(&OnCreateDevice)))
-			g_createDevice = reinterpret_cast<CreateDeviceFn>(previous);
-	return d3d;
+	HMODULE library = LoadLibraryW(L"d3d9.dll");
+	const auto create = library ? reinterpret_cast<Direct3DCreate9Fn>(GetProcAddress(library, "Direct3DCreate9")) : nullptr;
+	IDirect3D9* d3d = create ? create(D3D_SDK_VERSION) : nullptr;
+	if (!d3d)
+	{
+		Log("Windowed mode unavailable: Direct3DCreate9 failed.");
+		return;
+	}
+	if (void* previous = mem::HookVtable(d3d, kCreateDevice, reinterpret_cast<void*>(&OnCreateDevice)))
+		g_createDevice = reinterpret_cast<CreateDeviceFn>(previous);
+	d3d->Release();
+}
+
+// The game creates its window before it starts Direct3D: the right moment, on the game thread and
+// outside of any DLL initialisation.
+HWND WINAPI OnCreateWindowExA(DWORD exStyle, LPCSTR className, LPCSTR title, DWORD style, int x, int y, int width, int height,
+	HWND parent, HMENU menu, HINSTANCE instance, LPVOID param)
+{
+	const HWND created = g_createWindow(exStyle, className, title, style, x, y, width, height, parent, menu, instance, param);
+	static bool done = false;
+	if (!done)
+	{
+		done = true;
+		HookDirect3D();
+	}
+	return created;
 }
 
 }
@@ -93,13 +118,13 @@ void Install()
 {
 	if (!GetConfig().windowed)
 		return;
-	void* previous = mem::HookImport("d3d9.dll", "Direct3DCreate9", reinterpret_cast<void*>(&OnDirect3DCreate9));
+	void* previous = mem::HookImport("user32.dll", "CreateWindowExA", reinterpret_cast<void*>(&OnCreateWindowExA));
 	if (!previous)
 	{
-		Log("Windowed mode unavailable: the game does not import Direct3DCreate9.");
+		Log("Windowed mode unavailable: the game does not import CreateWindowExA.");
 		return;
 	}
-	g_create9 = reinterpret_cast<Direct3DCreate9Fn>(previous);
+	g_createWindow = reinterpret_cast<CreateWindowExAFn>(previous);
 }
 
 }
