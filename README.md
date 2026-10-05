@@ -87,3 +87,4 @@ ajouter un tool (une fonction côté ASI, une description côté MCP).
 
 - ASI : C++17, MSVC Win32, compilé uniquement par GitHub Actions (`.github/workflows/build.yml`).
 - MCP : `cd mcp && npm test` (tests contre un faux plugin, aucun jeu requis).
+- Essai d'un tool sur le jeu lancé, sans client MCP : `node mcp/scripts/call.mjs capture_scene '{}' shot`.
