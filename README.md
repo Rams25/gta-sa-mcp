@@ -34,10 +34,14 @@ Boucle visée : **observer → capturer → analyser → placer/modifier → vé
 | Géométrie | `raycast`, `screen_to_world`, `world_to_screen`, `get_ground_z`, `is_position_free` |
 | Édition | `create_object`, `move_object`, `rotate_object`, `delete_object`, `clone_object`, `select_object`, `list_objects` |
 | Historique et fichiers | `undo`, `redo`, `save_changes`, `load_changes` |
+| Rechargement à chaud | `load_model`, `restore_model` |
 
 `capture_scene` renvoie en un appel : la capture, la caméra (position, cap/tangage, FOV), les entités
 visibles (référence, modèle, position, rotation, boîte englobante, rectangle à l'écran, masquée ou non),
 l'objet sélectionné et des sondes de collision (centre de l'écran, grille de points, sol sous la caméra).
+
+`load_model` remplace le DFF, le TXD et/ou la collision d'un modèle par des fichiers sur disque, sans
+relancer le jeu : on exporte depuis Blender, on recharge, on regarde la capture, on corrige.
 
 `save_changes` écrit `<jeu>\gta-sa-mcp\scenes\<nom>.json` (rechargeable avec `load_changes`) et peut
 exporter en `pawn` (lignes `CreateObject` pour SA-MP/open.mp) ou en `ipl`.

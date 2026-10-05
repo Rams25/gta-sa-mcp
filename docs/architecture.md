@@ -25,6 +25,7 @@ game/
   sdk           adresses et structures de gta_sa.exe 1.0 US (entités, pools, monde, streaming, objets)
   camera        caméra rendue (lecture, projection, rayon écran) et caméra fixe
   catalog       noms des modèles, lus dans les .ide du jeu
+  assets        rechargement à chaud d'un modèle (DFF, TXD, COL) depuis des fichiers
 render/
   window        mode fenêtré (hook Direct3DCreate9 → CreateDevice/Reset)
   capture       copie du back buffer, réduction, encodage JPEG/PNG
@@ -74,6 +75,16 @@ autour d'elle. Le FOV de ce mode est une constante dans `CCam::Process_Fixed` (`
 demande. `get_camera`, `world_to_screen` et `screen_to_world` lisent la caméra RenderWare réellement
 rendue (matrice + `viewWindow`), donc restent justes quel que soit le mode.
 
+### Rechargement à chaud (`game/assets`)
+
+`load_model` court-circuite le streaming pour un modèle : il supprime les instances 3D des entités qui
+l'utilisent, décharge le modèle, charge le TXD dans un emplacement à lui (`mcp_<id>`), lit le DFF avec
+`CFileLoader::LoadAtomicFile`, puis marque le modèle « chargé, requis par le jeu » pour que le streaming
+ne le recharge ni ne le décharge. La collision est lue avec le chargeur COL2/COL3 du jeu dans le
+`CColModel` existant ; comme le jeu recharge les collisions de zone en se déplaçant, elle est réappliquée
+automatiquement si elle a été écrasée. `transparent` pose l'indicateur « dessiner en dernier » du modèle
+et de ses entités, nécessaire dès qu'il contient du vitrage.
+
 ## Protocole du pipe
 
 `\\.\pipe\gta-sa-mcp` (nom réglable), octets, UTF-8, un message JSON par ligne.
@@ -108,5 +119,7 @@ un bloc `image`.
 - La taille de la fenêtre suit la résolution choisie dans le jeu ; elle n'est pas encore réglable par l'ini.
 - Les objets créés sont statiques (pas de physique) et n'existent que le temps de la session : ils se
   rechargent avec `load_changes`.
-- Les entités de la carte ne sont pas modifiables (déplacer ou masquer un bâtiment) : seuls les objets
-  créés le sont.
+- Les entités de la carte ne sont pas déplaçables ni masquables : seuls les objets créés le sont. Leur
+  modèle, lui, peut être remplacé (`load_model`).
+- `load_model` ne remplace que des modèles existants (objets statiques) ; il ne crée pas de nouvel
+  identifiant de modèle.
