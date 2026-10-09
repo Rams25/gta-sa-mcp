@@ -213,3 +213,32 @@ back-buffer query. After an external HWND resize those globals can lag the real
 window/back buffer. Use screenshot image metadata and the Reset history to
 inspect the actual capture dimensions; do not infer complete UI resize parity
 from the status field or a successful Reset alone.
+
+
+### SA-MP class-selection key trials
+
+`set_samp_key` accepts `key: "LEFT"`, `"RIGHT"` or `"SHIFT"`, and
+`duration_ms` from 1 to 5000 (default 150). It hooks only the loaded x86 samp.dll
+GetAsyncKeyState import. Original class-selection timing, waiting and dialogue
+gates still apply. No Windows keyboard messages or desktop focus changes occur.
+The GTA pad lease is separate.
+
+During a lease the selected key returns held bit 8000; the other two exposed
+keys return zero. Other keys pass through the previous import function unchanged.
+Expiration or `release_samp_key` restores normal polling when physical isolation is disabled.
+The import remains installed as a pass-through. `get_samp_key` reports active
+state, time remaining and overridden/pressed poll counts independently of game
+frames. Expiration is checked on polls and status reads, so a stalled game cannot
+replay an expired lease. Poll counts alone do not prove class changes or RPCs;
+inspect server acknowledgements and client state.
+
+
+With `[input] isolate_physical=1`, LEFT, RIGHT and SHIFT also return zero outside
+an active SA-MP lease. Other virtual keys continue to forward unchanged. The hook
+is attempted at input installation and retried at each simulation pad update,
+before menu or missing-player early returns. `RefreshSampKeyHook()` also lets the
+bootstrap retry before dispatching frame work if SA-MP loads late. Status exposes
+`isolate_physical` and cumulative `isolated_polls` separately from lease polls.
+This isolates the test controls; it does not establish that physical SHIFT
+caused any previously observed automatic spawn. It is not isolation of all UI
+keys, nor of any code that bypasses samp.dll's GetAsyncKeyState import.

@@ -55,6 +55,14 @@ test('bounded input and release reach the selected plugin pipe unchanged', async
     assert.equal(received.at(-1).method, 'release_game_input');
     await call('get_game_input', {});
     assert.equal(received.at(-1).method, 'get_game_input');
+    const keyLease = { key: 'RIGHT', duration_ms: 650 };
+    assert.equal((await call('set_samp_key', keyLease)).result.isError, undefined);
+    assert.equal(received.at(-1).method, 'set_samp_key');
+    assert.deepEqual(received.at(-1).params, keyLease);
+    await call('get_samp_key', {});
+    assert.equal(received.at(-1).method, 'get_samp_key');
+    await call('release_samp_key', {});
+    assert.equal(received.at(-1).method, 'release_samp_key');
   } finally {
     child.kill();
     for (const socket of sockets) socket.destroy();

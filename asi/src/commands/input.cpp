@@ -37,10 +37,29 @@ json Set(const json& p) {
     game::input::Start(state,frames,timeout);
     return Status();
 }
+json SampStatus(const json&) {
+    const auto s=game::input::GetSampKeyStatus();
+    return {{"installed",s.installed},{"active",s.active},{"isolate_physical",s.isolated},{"isolated_polls",s.isolatedPolls},{"virtual_key",s.key},
+        {"remaining_ms",s.remainingMs},{"overridden_polls",s.polls},{"pressed_polls",s.pressedPolls},
+        {"state",s.reason},{"scope","samp.dll GetAsyncKeyState import only; no OS input or focus changes"}};
+}
+json SampSet(const json& p) {
+    if(!p.contains("key") || !p["key"].is_string()) throw CommandError("invalid_params","key must be LEFT, RIGHT or SHIFT");
+    const std::string name=p["key"].get<std::string>();
+    const int key=name=="LEFT"?0x25:name=="RIGHT"?0x27:name=="SHIFT"?0x10:0;
+    if(!key) throw CommandError("invalid_params","key must be LEFT, RIGHT or SHIFT");
+    const int duration=Integer(p,"duration_ms",150,1,5000);
+    if(!game::input::StartSampKey(key,duration)) throw CommandError("input_unavailable","x86 samp.dll GetAsyncKeyState import unavailable");
+    return SampStatus(p);
+}
+json SampRelease(const json& p) {game::input::ReleaseSampKey();return SampStatus(p);}
 json Release(const json&) {game::input::Release();return Status();}
 json Get(const json&) {return Status();}
 }
 void RegisterInputCommands() {
+    dispatcher::Register("set_samp_key",Phase::Tick,SampSet);
+    dispatcher::Register("release_samp_key",Phase::Direct,SampRelease);
+    dispatcher::Register("get_samp_key",Phase::Direct,SampStatus);
     dispatcher::Register("set_game_input",Phase::Tick,Set);
     dispatcher::Register("release_game_input",Phase::Tick,Release);
     dispatcher::Register("get_game_input",Phase::Tick,Get);

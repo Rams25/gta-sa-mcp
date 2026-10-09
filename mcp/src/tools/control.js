@@ -2,6 +2,15 @@
 import { tool, vec3, number, integer, boolean, entityRef, objectId } from './schema.js';
 
 export default [
+  tool('set_samp_key', 'Holds LEFT, RIGHT or SHIFT for SA-MP direct key polling in this process only. ' +
+    'Hooks only samp.dll GetAsyncKeyState import; no OS input, focus or desktop actions. ' +
+    'The other two exposed keys are neutral during the lease; other keys forward unchanged. Idle class keys are neutral when input.isolate_physical is enabled. ' +
+    'Does not bypass dialogue or class-selection gates. Returns active state and observed polls.', {
+      key: { type: 'string', enum: ['LEFT', 'RIGHT', 'SHIFT'], description: 'Virtual key to hold.' },
+      duration_ms: integer('Wall-clock lease duration, default150ms; replaces any prior lease.', { minimum: 1, maximum: 5000 }),
+    }, ['key']),
+  tool('release_samp_key', 'Immediately cancels the SA-MP key lease, including while the simulation is blocked. Idle class keys stay neutral if physical isolation is enabled; otherwise normal polling resumes.'),
+  tool('get_samp_key', 'Returns SA-MP key hook availability, active state, time remaining, overridden and pressed poll counts.'),
   tool('set_game_input',
     'Drives genuine local GTA pad 0 controls in this connected game process, without desktop focus or OS input. ' +
     'Replaces physical pad input for a bounded number of simulation frames, then releases automatically. ' +

@@ -12,6 +12,16 @@ struct Status {
     unsigned applied;
     const char* reason;
 };
+struct SampKeyStatus {
+    bool installed, active, isolated;
+    int key;
+    unsigned remainingMs, polls, pressedPolls, isolatedPolls;
+    const char* reason;
+};
+void RefreshSampKeyHook();
+bool StartSampKey(int key, unsigned durationMs);
+void ReleaseSampKey();
+SampKeyStatus GetSampKeyStatus();
 bool Install();
 void AfterUpdatePads();
 void Start(const State& state, unsigned frames, unsigned timeoutMs);
