@@ -5,6 +5,7 @@
 #include "../core/memory.hpp"
 #include "../core/dispatcher.hpp"
 #include <atomic>
+#include <cstring>
 #include "../game/sdk.hpp"
 
 #include <windows.h>
@@ -31,6 +32,19 @@ ResetFn g_reset = nullptr;
 using PresentFn = HRESULT (STDMETHODCALLTYPE*)(IDirect3DDevice9*, const RECT*, const RECT*, HWND, const RGNDATA*);
 PresentFn g_present = nullptr;
 std::atomic<unsigned> g_blockedMouse{0};
+std::atomic<unsigned> g_resetCount{0};
+std::atomic<long> g_lastResetResult{0};
+HWND g_window = nullptr;
+BOOL WINAPI BackgroundWindowPos(HWND hwnd, HWND after, int x, int y, int width, int height, UINT flags)
+{
+	flags |= SWP_NOACTIVATE;
+	if (hwnd == g_window) {
+		x = GetConfig().x; y = GetConfig().y;
+		flags &= ~SWP_NOMOVE;
+	}
+	// This plugin's own import is not patched; preserve the real API result.
+	return SetWindowPos(hwnd, after, x, y, width, height, flags);
+}
 BOOL WINAPI IgnoreClip(const RECT*) { ++g_blockedMouse; return TRUE; }
 BOOL WINAPI IgnoreCursorPos(int, int) { ++g_blockedMouse; return TRUE; }
 HWND WINAPI IgnoreCapture(HWND) { ++g_blockedMouse; return nullptr; }
@@ -43,7 +57,6 @@ HRESULT STDMETHODCALLTYPE OnPresent(IDirect3DDevice9* device, const RECT* source
 	dispatcher::PumpFrame();
 	return g_present(device, source, dest, overrideWindow, dirty);
 }
-HWND g_window = nullptr;
 
 void ForceWindowed(D3DPRESENT_PARAMETERS* params)
 {
@@ -77,6 +90,8 @@ HRESULT STDMETHODCALLTYPE OnReset(IDirect3DDevice9* device, D3DPRESENT_PARAMETER
 		params->BackBufferHeight = static_cast<UINT>(game::ScreenHeight());
 	}
 	const HRESULT result = g_reset(device, params);
+	g_lastResetResult = result;
+	++g_resetCount;
 	if (SUCCEEDED(result))
 		FitWindow(params);
 	return result;
@@ -158,6 +173,7 @@ void ProtectDesktop()
 		mem::HookModuleImport(module, "user32.dll", "ReleaseCapture", reinterpret_cast<void*>(&IgnoreReleaseCapture));
 		mem::HookModuleImport(module, "user32.dll", "SetForegroundWindow", reinterpret_cast<void*>(&IgnoreForeground));
 		mem::HookModuleImport(module, "user32.dll", "SetFocus", reinterpret_cast<void*>(&IgnoreFocus));
+		mem::HookModuleImport(module, "user32.dll", "SetWindowPos", reinterpret_cast<void*>(&BackgroundWindowPos));
 	}
 }
 void RefreshCaptureHook()
@@ -171,10 +187,38 @@ void RefreshCaptureHook()
 	if (FAILED(exposed->QueryInterface(__uuidof(IDirect3DDevice9), reinterpret_cast<void**>(&actual))) || !actual) return;
 	if (void* previous = mem::HookVtable(actual, 17, reinterpret_cast<void*>(&OnPresent)))
 		g_present = reinterpret_cast<PresentFn>(previous);
+	if (void* previous = mem::HookVtable(actual, kReset, reinterpret_cast<void*>(&OnReset)))
+		g_reset = reinterpret_cast<ResetFn>(previous);
 	actual->Release();
 }
 bool CapturesAtPresent() { return g_present != nullptr; }
 unsigned BlockedMouseCalls() { return g_blockedMouse.load(); }
+unsigned ResetCount() { return g_resetCount.load(); }
+long LastResetResult() { return g_lastResetResult.load(); }
+bool ResetCurrentWindowedMode()
+{
+	// Test command, game thread only. Use GTA's full video-mode lifecycle, not a
+	// direct D3D Reset that would skip RenderWare's resource callbacks.
+	if (!GetConfig().windowed || !GetConfig().noActivate || !game::InGame()) return false;
+	const unsigned char expected[]{0x8B,0x44,0x24,0x04,0x50,0xE8,0xC6,0x29,0x0B,0x00};
+	if (std::memcmp(reinterpret_cast<void*>(0x745C70), expected, sizeof(expected))) return false;
+	RefreshCaptureHook();
+	if (!g_reset) return false;
+	auto& current = game::At<int>(0xC97C18);
+	const int mode = current;
+	auto* modes = game::At<int*>(0xC97C48);
+	const int count = game::At<int>(0xC97C40);
+	if (!modes || mode < 0 || mode >= count) return false;
+	int& flags = modes[mode * 5 + 4];
+	const int savedFlags = flags;
+	flags &= ~1; // Never request exclusive fullscreen on the shared desktop.
+	current = -1; // Force same-mode recreation, as the client's mode switch does.
+	reinterpret_cast<void (__cdecl*)(int)>(0x745C70)(mode);
+	current = mode;
+	flags = savedFlags;
+	ProtectDesktop();
+	return true;
+}
 void Install()
 {
 	ProtectDesktop();

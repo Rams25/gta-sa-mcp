@@ -45,6 +45,9 @@ async function launch(bridge, args) {
 }
 
 export default [
+  tool('reset_windowed_device',
+    'Test-only: recreate the current video mode through GTA on the game thread. Requires windowed/no_activate mode. ' +
+    'Keeps the desktop out of exclusive fullscreen. Returns actual native Reset call count and HRESULT; inspect subsequent rendering separately.'),
   {
     ...tool('get_status',
       'Whether the game is running and ready for commands, with the plugin version, the game state ' +

@@ -11,5 +11,8 @@ void ProtectDesktop();
 void RefreshCaptureHook();
 bool CapturesAtPresent();
 unsigned BlockedMouseCalls();
+unsigned ResetCount();
+long LastResetResult();
+bool ResetCurrentWindowedMode();
 
 }

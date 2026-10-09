@@ -1,27 +1,27 @@
 # gta-sa-mcp
 
-Serveur MCP pour **GTA: San Andreas** : il permet à Claude Code, Codex ou tout client MCP d'observer,
-piloter et modifier le jeu en direct, avec des données structurées **et** des captures d'écran.
+Serveur MCP pour **GTA: San Andreas** : il permet Ã  Claude Code, Codex ou tout client MCP d'observer,
+piloter et modifier le jeu en direct, avec des donnÃ©es structurÃ©es **et** des captures d'Ã©cran.
 
-Boucle visée : **observer → capturer → analyser → placer/modifier → vérifier visuellement → corriger → sauvegarder.**
+Boucle visÃ©e : **observer â†’ capturer â†’ analyser â†’ placer/modifier â†’ vÃ©rifier visuellement â†’ corriger â†’ sauvegarder.**
 
 ```
- agent (Claude Code, Codex…)
-        │  MCP, stdio (JSON-RPC)
- mcp/   serveur Node, sans dépendance : schémas des tools, images, lancement du jeu
-        │  named pipe \\.\pipe\gta-sa-mcp (une ligne JSON par requête/réponse)
- asi/   gta-sa-mcp.asi injecté dans gta_sa.exe : exécute les commandes sur le thread du jeu
+ agent (Claude Code, Codexâ€¦)
+        â”‚  MCP, stdio (JSON-RPC)
+ mcp/   serveur Node, sans dÃ©pendance : schÃ©mas des tools, images, lancement du jeu
+        â”‚  named pipe \\.\pipe\gta-sa-mcp (une ligne JSON par requÃªte/rÃ©ponse)
+ asi/   gta-sa-mcp.asi injectÃ© dans gta_sa.exe : exÃ©cute les commandes sur le thread du jeu
 ```
 
 ## Ce que fait le plugin
 
-- **Quasi-headless** : fenêtre sans bordure (pas de plein écran), rendu actif même sans le focus, ne
-  prend ni la souris ni le clavier du bureau ; la fenêtre peut être placée hors écran (`x=-3000`).
-- **Démarrage sans intervention** : vidéos d'intro passées, nouvelle partie lancée toute seule, monde
-  « bac à sable » (pas de `main.scm`, pas de trafic, joueur invincible et non affiché, HUD masqué).
-  Tout est réglable dans `gta-sa-mcp.ini`.
-- **Sous SA-MP**, le plugin n'automatise rien (démarrage, scripts, joueur) : il se contente d'observer
-  et d'éditer.
+- **Quasi-headless** : fenÃªtre sans bordure (pas de plein Ã©cran), rendu actif mÃªme sans le focus, ne
+  prend ni la souris ni le clavier du bureau ; la fenÃªtre peut Ãªtre placÃ©e hors Ã©cran (`x=-3000`).
+- **DÃ©marrage sans intervention** : vidÃ©os d'intro passÃ©es, nouvelle partie lancÃ©e toute seule, monde
+  Â« bac Ã  sable Â» (pas de `main.scm`, pas de trafic, joueur invincible et non affichÃ©, HUD masquÃ©).
+  Tout est rÃ©glable dans `gta-sa-mcp.ini`.
+- **Sous SA-MP**, le plugin n'automatise rien (dÃ©marrage, scripts, joueur) : il se contente d'observer
+  et d'Ã©diter.
 
 ## Tools
 
@@ -30,34 +30,34 @@ Boucle visée : **observer → capturer → analyser → placer/modifier → vé
 | Session | `get_status`, `launch_game` |
 | Observation | `get_player`, `get_camera`, `get_nearby_entities`, `get_entity`, `get_entity_bounds`, `search_models`, `get_model_info` |
 | Vision | `take_screenshot`, `capture_scene` |
-| Déplacement | `teleport`, `set_camera`, `look_at`, `set_world` |
-| Géométrie | `raycast`, `screen_to_world`, `world_to_screen`, `get_ground_z`, `is_position_free` |
-| Édition | `create_object`, `move_object`, `rotate_object`, `delete_object`, `clone_object`, `select_object`, `list_objects` |
+| DÃ©placement | `teleport`, `set_camera`, `look_at`, `set_world` |
+| GÃ©omÃ©trie | `raycast`, `screen_to_world`, `world_to_screen`, `get_ground_z`, `is_position_free` |
+| Ã‰dition | `create_object`, `move_object`, `rotate_object`, `delete_object`, `clone_object`, `select_object`, `list_objects` |
 | Historique et fichiers | `undo`, `redo`, `save_changes`, `load_changes` |
-| Rechargement à chaud | `load_model`, `restore_model` |
+| Rechargement Ã  chaud | `load_model`, `restore_model` |
 
-`capture_scene` renvoie en un appel : la capture, la caméra (position, cap/tangage, FOV), les entités
-visibles (référence, modèle, position, rotation, boîte englobante, rectangle à l'écran, masquée ou non),
-l'objet sélectionné et des sondes de collision (centre de l'écran, grille de points, sol sous la caméra).
+`capture_scene` renvoie en un appel : la capture, la camÃ©ra (position, cap/tangage, FOV), les entitÃ©s
+visibles (rÃ©fÃ©rence, modÃ¨le, position, rotation, boÃ®te englobante, rectangle Ã  l'Ã©cran, masquÃ©e ou non),
+l'objet sÃ©lectionnÃ© et des sondes de collision (centre de l'Ã©cran, grille de points, sol sous la camÃ©ra).
 
-`load_model` remplace le DFF, le TXD et/ou la collision d'un modèle par des fichiers sur disque, sans
+`load_model` remplace le DFF, le TXD et/ou la collision d'un modÃ¨le par des fichiers sur disque, sans
 relancer le jeu : on exporte depuis Blender, on recharge, on regarde la capture, on corrige.
 
-`save_changes` écrit `<jeu>\gta-sa-mcp\scenes\<nom>.json` (rechargeable avec `load_changes`) et peut
+`save_changes` Ã©crit `<jeu>\gta-sa-mcp\scenes\<nom>.json` (rechargeable avec `load_changes`) et peut
 exporter en `pawn` (lignes `CreateObject` pour SA-MP/open.mp) ou en `ipl`.
 
 ## Installation
 
-Prérequis : GTA San Andreas **1.0 US** (`gta_sa.exe` de 14 383 616 octets), un chargeur d'ASI
-(Silent's ASI Loader, CLEO…) et Node.js 18+.
+PrÃ©requis : GTA San Andreas **1.0 US** (`gta_sa.exe` de 14 383 616 octets), un chargeur d'ASI
+(Silent's ASI Loader, CLEOâ€¦) et Node.js 18+.
 
-1. Télécharger l'artefact `gta-sa-mcp-asi` du dernier build
-   ([Actions](../../actions/workflows/build.yml)) — le plugin n'est compilé que par la CI.
+1. TÃ©lÃ©charger l'artefact `gta-sa-mcp-asi` du dernier build
+   ([Actions](../../actions/workflows/build.yml)) â€” le plugin n'est compilÃ© que par la CI.
 2. Copier `gta-sa-mcp.asi` et `gta-sa-mcp.ini` dans le dossier du jeu :
    ```powershell
    .\scripts\install.ps1 -GameDir "C:\Jeux\GTA San Andreas" -From .\gta-sa-mcp-asi
    ```
-3. Déclarer le serveur MCP, par exemple dans `.mcp.json` (Claude Code) :
+3. DÃ©clarer le serveur MCP, par exemple dans `.mcp.json` (Claude Code) :
    ```json
    {
      "mcpServers": {
@@ -69,29 +69,29 @@ Prérequis : GTA San Andreas **1.0 US** (`gta_sa.exe` de 14 383 616 octets), un 
      }
    }
    ```
-   Avec `GTA_SA_DIR`, le tool `launch_game` démarre le jeu lui-même.
+   Avec `GTA_SA_DIR`, le tool `launch_game` dÃ©marre le jeu lui-mÃªme.
 
-La taille de la fenêtre est la résolution choisie dans les options d'affichage du jeu.
+La taille de la fenÃªtre est la rÃ©solution choisie dans les options d'affichage du jeu.
 
 ## Conventions
 
-- Positions `[x, y, z]` en mètres, `z` vers le haut, `+y` au nord, `+x` à l'est.
-- Caps en degrés, `0` = nord, sens antihoraire. Tangage positif vers le haut.
-- Rotations d'objet `[rx, ry, rz]` en degrés, convention de `CreateObject` (SA-MP) et de MTA.
-- Coordonnées écran en pixels du jeu depuis le coin haut-gauche ; une capture réduite indique
+- Positions `[x, y, z]` en mÃ¨tres, `z` vers le haut, `+y` au nord, `+x` Ã  l'est.
+- Caps en degrÃ©s, `0` = nord, sens antihoraire. Tangage positif vers le haut.
+- Rotations d'objet `[rx, ry, rz]` en degrÃ©s, convention de `CreateObject` (SA-MP) et de MTA.
+- CoordonnÃ©es Ã©cran en pixels du jeu depuis le coin haut-gauche ; une capture rÃ©duite indique
   `image_to_screen_scale`.
-- Entités du monde : référence du type `"building:118272"`. Objets créés : `object_id`.
+- EntitÃ©s du monde : rÃ©fÃ©rence du type `"building:118272"`. Objets crÃ©Ã©s : `object_id`.
 - Les collisions (`raycast`, `get_ground_z`, `snap_to_ground`, `is_position_free`) n'existent qu'autour
-  du joueur : `teleport` près de la zone de travail. La caméra, elle, peut être n'importe où.
+  du joueur : `teleport` prÃ¨s de la zone de travail. La camÃ©ra, elle, peut Ãªtre n'importe oÃ¹.
 
-## Développement
+## DÃ©veloppement
 
 Voir [docs/architecture.md](docs/architecture.md) : organisation du code, protocole du pipe, et comment
-ajouter un tool (une fonction côté ASI, une description côté MCP).
+ajouter un tool (une fonction cÃ´tÃ© ASI, une description cÃ´tÃ© MCP).
 
 - ASI: C++17, MSVC Win32; GitHub Actions or a local development build (below).
 - MCP : `cd mcp && npm test` (tests contre un faux plugin, aucun jeu requis).
-- Essai d'un tool sur le jeu lancé, sans client MCP : `node mcp/scripts/call.mjs capture_scene '{}' shot`.
+- Essai d'un tool sur le jeu lancÃ©, sans client MCP : `node mcp/scripts/call.mjs capture_scene '{}' shot`.
 
 ## SA-MP background testing
 
@@ -160,3 +160,24 @@ intercepted mouse requests. Windows are created with `WS_EX_NOACTIVATE`.
 Captures are taken before the real device's Present, after the SA-MP proxy draws
 its UI; `get_status.capture_at_present` exposes that capture route. A status
 response alone never proves the game rendered or that an input moved the player.
+
+
+### Windowed device-reset trials
+
+`reset_windowed_device` runs GTA's native video-mode recreation on the game
+thread, including RenderWare and SA-MP loss/restore callbacks. It requires an
+in-game session, verified GTA code, `windowed=1` and `no_activate=1`. It forces
+recreation of the current mode without requesting exclusive fullscreen.
+
+The result reports the actual `reset_calls` and last `hresult`. For a single
+successful reset, require exactly one call and HRESULT 0, then inspect captures
+and game progress. A rollback can issue another Reset, so a final successful
+HRESULT alone is insufficient. Status exposes cumulative `reset_count` and
+`last_reset_hresult`; these are instrumentation, not visual acceptance.
+
+The no-activation guard also intercepts game/SA-MP `SetWindowPos` calls, retaining
+the configured off-screen coordinates for the game window. This test does not
+reproduce Alt+Enter, exclusive fullscreen or a third-party window-mode plugin.
+A paired DL-R1/replacement trial recreated three model previews, preserved a
+style-4 sprite and retained local movement after one successful Reset per client.
+The frontend-menu-active branch has not been exercised by this command's trials.

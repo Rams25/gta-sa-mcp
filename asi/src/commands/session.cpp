@@ -33,9 +33,20 @@ json GetStatus(const json&)
 		{ "frame", dispatcher::FrameCount() },
 		{ "capture_at_present", window::CapturesAtPresent() },
 		{ "blocked_mouse_calls", window::BlockedMouseCalls() },
+		{ "reset_count", window::ResetCount() },
+		{ "last_reset_hresult", window::LastResetResult() },
 		{ "resolution", json::array({ game::ScreenWidth(), game::ScreenHeight() }) },
 		{ "methods", dispatcher::Methods() },
 	};
+}
+
+json ResetWindowed(const json&)
+{
+	const unsigned before = window::ResetCount();
+	if (!window::ResetCurrentWindowedMode())
+		throw CommandError("reset_unavailable", "Requires verified GTA in-game code and windowed/no_activate configuration");
+	return {{"reset_calls", window::ResetCount() - before},
+		{"hresult", window::LastResetResult()}, {"scope", "same-mode windowed native lifecycle; not fullscreen acceptance"}};
 }
 
 }
@@ -43,4 +54,5 @@ json GetStatus(const json&)
 void RegisterSessionCommands()
 {
 	dispatcher::Register("get_status", Phase::Direct, GetStatus);
+	dispatcher::Register("reset_windowed_device", Phase::Tick, ResetWindowed);
 }
