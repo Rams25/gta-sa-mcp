@@ -45,6 +45,14 @@ async function launch(bridge, args) {
 }
 
 export default [
+  tool('begin_roadsign_trace',
+    'Opt-in GTA US1.0 diagnostic: verify and install eleven roadsign CALL observers, then start a fresh 512-event mapped trace file. ' +
+    'Changes code only in the test process; preserves native results. Adds timing overhead. Disabled by default; not a crash fix.'),
+  tool('get_roadsign_trace',
+    'Read completed roadsign call returns, bounded resource fields, overwritten count and mapped trace filename. ' +
+    'Stage 3 uses AL (value & 255). No pre-call markers or full nested invocation correlation.'),
+  tool('end_roadsign_trace',
+    'Stop recording and flush the mapped roadsign trace. Hooks remain installed until game exit; native results remain unchanged.'),
   tool('reset_windowed_device',
     'Test-only: recreate the current video mode through GTA on the game thread. Requires windowed/no_activate mode. ' +
     'Keeps the desktop out of exclusive fullscreen. Returns actual native Reset call count and HRESULT; inspect subsequent rendering separately.'),

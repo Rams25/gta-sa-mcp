@@ -1,0 +1,13 @@
+# Optional roadsign diagnostics
+
+`begin_roadsign_trace` verifies eleven native GTA US1.0 CALL targets, installs return observers, and creates a fresh `roadsign-trace-PID-TICK.bin` in the game folder. No observers are installed by default. This is diagnostic tooling, not a SA-MP behavior patch or a fix for the native NULL atomic crash at53388E.
+
+`get_roadsign_trace` returns the latest512 events, total/overwritten counts, stage names and file path. `end_roadsign_trace` stops recording and flushes the mapped file; hooks remain until process exit. Each event records integer return, stage, tick, thread, bounded charset fields, and for the pixel-copy return the actual source/destination pointers and strides. Stage3 is a native boolean in **AL**: use `value & 255`, not the whole EAX. Other stages return pointers. Nonzero pointers alone do not prove valid objects.
+
+The recorder writes a fixed memory-mapped ring without formatted logs or file I/O calls inside the native callback. A mutex still synchronizes reads; JSON snapshots, mapped-page faults and observer execution can change timing and memory pressure. There are no pre-call markers or complete nested-constructor IDs. Calls that never return are not recorded; a failed/overwritten/incomplete trace may need more targeted instrumentation.
+
+File version1: little-endian five DWORD header (`0x39313352`,version1,event size52,capacity512,committed sequence), then512 records. Each record is13 DWORDs: sequence,stage,value,tick,charset,raster,pixels,source_stride,destination_stride,readable,thread,source,destination. `readable` bits1/2/4/8/16 indicate successful bounded reads of the corresponding charset pointer/raster/pixels/source stride/destination stride. Read a stopped recorder/file; concurrent file reads are not atomic. Old trace files are retained. End-flushed files were checked after termination; crash/power-loss durability has not been tested.
+
+Before experiments, pin the GTA executable externally (tested SHA256 `a559aa772fd136379155efa71f00c47aad34bbfeae6196b0fe1047d0645cbd26`). Runtime validation checks call sites, not a full image hash. Refuse unexpected signatures rather than chain unknown hooks.
+
+Validation:110 emulated ABI cases on all eleven compiled wrappers, with native functions and recorder stubbed. General registers, stack, arguments, flags, x87 data/control and SSE fields are checked. Unicorn's x87 instruction-pointer restoration limitation was reproduced separately and excluded; this is not full hardware/exception/concurrency proof. A paired original/rebuilt SA-MP trial recorded162 completed calls per client across all eleven stages and displayed the signs; no resource failure occurred. That successful trial does not explain the earlier crash.

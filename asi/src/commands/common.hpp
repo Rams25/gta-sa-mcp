@@ -9,6 +9,7 @@
 
 // One per file in this folder; each registers its commands with the dispatcher.
 void RegisterSessionCommands();
+void RegisterRoadsignTraceCommands();
 void RegisterPlayerCommands();
 void RegisterInputCommands();
 void RegisterCameraCommands();

@@ -25,6 +25,7 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID)
 
 	Log("gta-sa-mcp " GTA_SA_MCP_VERSION " loaded.");
 	RegisterSessionCommands();
+	RegisterRoadsignTraceCommands();
 	RegisterPlayerCommands();
 	RegisterInputCommands();
 	RegisterCameraCommands();

@@ -46,6 +46,7 @@ add_library(gta-sa-mcp SHARED
 	asi/src/commands/objects.cpp
 	asi/src/commands/player.cpp
 	asi/src/commands/input.cpp
+	asi/src/commands/roadsign_trace.cpp
 	asi/src/commands/session.cpp
 	asi/src/commands/world.cpp
 )
