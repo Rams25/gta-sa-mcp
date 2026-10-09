@@ -18,6 +18,25 @@ namespace capture
 namespace
 {
 
+constexpr std::uint32_t A2R10G10B10ToRgb(std::uint32_t pixel)
+{
+	// D3DFMT_A2R10G10B10: A[31:30], R[29:20], G[19:10], B[9:0].
+	// Reduce normalized channels to 8 bits with nearest rounding; no gamma change.
+	const auto r = (((pixel >> 20) & 0x3FFu) * 255u + 511u) / 1023u;
+	const auto g = (((pixel >> 10) & 0x3FFu) * 255u + 511u) / 1023u;
+	const auto b = ((pixel & 0x3FFu) * 255u + 511u) / 1023u;
+	return (r << 16) | (g << 8) | b;
+}
+
+// Guard the channel order and alpha independence of the packed D3D format.
+static_assert(A2R10G10B10ToRgb(0x00000000u) == 0x000000u);
+static_assert(A2R10G10B10ToRgb(0xFFFFFFFFu) == 0xFFFFFFu);
+static_assert(A2R10G10B10ToRgb(0x3FF00000u) == 0xFF0000u);
+static_assert(A2R10G10B10ToRgb(0x000FFC00u) == 0x00FF00u);
+static_assert(A2R10G10B10ToRgb(0x000003FFu) == 0x0000FFu);
+static_assert(A2R10G10B10ToRgb(0xC0000000u) == 0x000000u);
+static_assert(A2R10G10B10ToRgb((512u << 20) | (256u << 10) | 1023u) == 0x8040FFu);
+
 IDirect3DDevice9* Device()
 {
 	return game::At<IDirect3DDevice9*>(0xC97C28); // RenderWare's Direct3D device
@@ -105,6 +124,19 @@ bool Grab(Image& out, std::string& error)
 				to[0] = row[2];
 				to[1] = row[1];
 				to[2] = row[0];
+			}
+			break;
+		case D3DFMT_A2R10G10B10:
+			for (int x = 0; x < out.width; ++x, row += 4, to += 3)
+			{
+				const std::uint32_t pixel = static_cast<std::uint32_t>(row[0])
+					| (static_cast<std::uint32_t>(row[1]) << 8)
+					| (static_cast<std::uint32_t>(row[2]) << 16)
+					| (static_cast<std::uint32_t>(row[3]) << 24);
+				const auto rgb = A2R10G10B10ToRgb(pixel);
+				to[0] = static_cast<std::uint8_t>(rgb >> 16);
+				to[1] = static_cast<std::uint8_t>(rgb >> 8);
+				to[2] = static_cast<std::uint8_t>(rgb);
 			}
 			break;
 		case D3DFMT_R5G6B5:

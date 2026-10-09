@@ -13,6 +13,7 @@
 #include "core/ipc.hpp"
 #include "core/log.hpp"
 #include "render/window.hpp"
+#include "game/input.hpp"
 
 #include <windows.h>
 
@@ -25,6 +26,7 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID)
 	Log("gta-sa-mcp " GTA_SA_MCP_VERSION " loaded.");
 	RegisterSessionCommands();
 	RegisterPlayerCommands();
+	RegisterInputCommands();
 	RegisterCameraCommands();
 	RegisterEntityCommands();
 	RegisterWorldCommands();
@@ -34,6 +36,8 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID)
 	RegisterAssetCommands();
 
 	bootstrap::Install();
+	if (!game::input::Install())
+		Log("Local pad input unavailable: native UpdatePads call differs.");
 	window::Install();
 	ipc::Start();
 	return TRUE;

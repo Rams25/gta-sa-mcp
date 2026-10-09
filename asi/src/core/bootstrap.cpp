@@ -6,6 +6,7 @@
 #include "memory.hpp"
 #include "../game/assets.hpp"
 #include "../game/sdk.hpp"
+#include "../render/window.hpp"
 
 #include <windows.h>
 
@@ -149,8 +150,8 @@ void KeepWorldQuiet()
 void __cdecl OnGameProcess()
 {
 	reinterpret_cast<void (__cdecl*)()>(g_gameProcess)();
-	if (!game::PlayerPed())
-		return;
+	if (!game::PlayerPed() || GetModuleHandleW(L"samp.dll"))
+		return; // Multiplayer commands are dispatched at OnShowRaster.
 	KeepWorldQuiet();
 	game::assets::Tick();
 	dispatcher::PumpTick();
@@ -158,13 +159,24 @@ void __cdecl OnGameProcess()
 
 void* __cdecl OnShowRaster(void* camera)
 {
-	dispatcher::PumpFrame();
+	// SA-MP owns the outer CGame::Process call and overwrites that callsite.
+	// Dispatch on the same game thread at the surviving frame boundary instead.
+	if (GetModuleHandleW(L"samp.dll") && game::PlayerPed())
+	{
+		game::assets::Tick();
+		dispatcher::PumpTick();
+	}
+	window::ProtectDesktop();
+	window::RefreshCaptureHook();
+	if (!window::CapturesAtPresent()) dispatcher::PumpFrame();
 	return reinterpret_cast<void* (__cdecl*)(void*)>(g_showRaster)(camera);
 }
 
 void* __cdecl OnShowRasterMenu(void* camera)
 {
-	dispatcher::PumpFrame();
+	window::ProtectDesktop();
+	window::RefreshCaptureHook();
+	if (!window::CapturesAtPresent()) dispatcher::PumpFrame();
 	return reinterpret_cast<void* (__cdecl*)(void*)>(g_showRasterMenu)(camera);
 }
 
@@ -184,7 +196,8 @@ void Install()
 	const Config& config = GetConfig();
 
 	// Without these two nothing works: stop here on an unknown executable rather than half-patch it.
-	if (!Hook(0x53E981, OnGameProcess, g_gameProcess, "game process")
+	const bool multiplayer = GetModuleHandleW(L"samp.dll") != nullptr;
+	if ((!multiplayer && !Hook(0x53E981, OnGameProcess, g_gameProcess, "game process"))
 		|| !Hook(0x53EC01, OnShowRaster, g_showRaster, "frame end"))
 		return;
 	Hook(0x53E888, OnShowRasterMenu, g_showRasterMenu, "menu frame end");

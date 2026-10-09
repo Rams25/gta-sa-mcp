@@ -24,6 +24,7 @@ std::uintptr_t HookCall(std::uintptr_t site, void* target);
 
 // Replaces an import of the game executable. Returns the previous pointer, or null if not imported.
 void* HookImport(const char* dll, const char* function, void* replacement);
+void* HookModuleImport(void* module, const char* dll, const char* function, void* replacement);
 
 // Replaces entry `index` of a COM object's vtable in place. Returns the previous entry, or null if
 // the entry already was `replacement` (or could not be written).

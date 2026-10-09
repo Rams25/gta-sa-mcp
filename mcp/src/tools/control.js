@@ -2,6 +2,27 @@
 import { tool, vec3, number, integer, boolean, entityRef, objectId } from './schema.js';
 
 export default [
+  tool('set_game_input',
+    'Drives genuine local GTA pad 0 controls in this connected game process, without desktop focus or OS input. ' +
+    'Replaces physical pad input for a bounded number of simulation frames, then releases automatically. ' +
+    'Uses raw GTA controller fields: actions depend on the game control mode (square usually jump/brake, ' +
+    'cross sprint/accelerate, triangle enter/exit). Does not teleport or bypass disabled controls. ' +
+    'Returns scheduling status; use get_game_input to observe completion. Frozen simulation cannot apply input.',
+    {
+      left_x: integer('Movement/steering axis, negative left, positive right.', { minimum: -128, maximum: 128 }),
+      left_y: integer('Movement axis, negative forward, positive backward.', { minimum: -128, maximum: 128 }),
+      right_x: integer('Raw right-stick horizontal axis.', { minimum: -128, maximum: 128 }),
+      right_y: integer('Raw right-stick vertical axis.', { minimum: -128, maximum: 128 }),
+      buttons: { type: 'array', uniqueItems: true, items: { type: 'string', enum: [
+        'left_shoulder1', 'left_shoulder2', 'right_shoulder1', 'right_shoulder2',
+        'dpad_up', 'dpad_down', 'dpad_left', 'dpad_right', 'select', 'square', 'triangle',
+        'cross', 'circle', 'shock_left', 'shock_right', 'walk', 'vehicle_mouse_look', 'radio_track_skip',
+      ] }, description: 'Buttons held at native value 128; omitted buttons and axes are neutral.' },
+      frames: integer('Simulation frames to apply (default 1). A new command replaces the current lease.', { minimum: 1, maximum: 300 }),
+      timeout_ms: integer('Wall-clock expiration checked before each injection (default 5000).', { minimum: 1, maximum: 10000 }),
+    }),
+  tool('release_game_input', 'Cancels this process\'s input lease; a neutral sample is applied at the next simulation pad update.'),
+  tool('get_game_input', 'Reports whether the verified native pad hook is available, remaining/applied frames, and completion/cancellation reason.'),
   tool('teleport',
     'Moves the player (with their vehicle, if any) to a position and loads the map around it. Collision only ' +
     'exists around the player: teleport near a place before using raycast, get_ground_z or snap_to_ground there.',

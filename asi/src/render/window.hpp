@@ -7,5 +7,9 @@ namespace window
 
 // Called once when the plugin is loaded, before the game creates its Direct3D device.
 void Install();
+void ProtectDesktop();
+void RefreshCaptureHook();
+bool CapturesAtPresent();
+unsigned BlockedMouseCalls();
 
 }

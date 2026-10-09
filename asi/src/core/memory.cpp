@@ -43,7 +43,13 @@ std::uintptr_t HookCall(std::uintptr_t site, void* target)
 
 void* HookImport(const char* dll, const char* function, void* replacement)
 {
-	auto* base = reinterpret_cast<std::uint8_t*>(GetModuleHandleW(nullptr));
+	return HookModuleImport(GetModuleHandleW(nullptr), dll, function, replacement);
+}
+
+void* HookModuleImport(void* module, const char* dll, const char* function, void* replacement)
+{
+	if (!module) return nullptr;
+	auto* base = reinterpret_cast<std::uint8_t*>(module);
 	const auto* dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
 	const auto* nt = reinterpret_cast<const IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
 	const IMAGE_DATA_DIRECTORY& dir = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
@@ -66,6 +72,7 @@ void* HookImport(const char* dll, const char* function, void* replacement)
 			if (std::strcmp(byName->Name, function) != 0)
 				continue;
 			void* previous = reinterpret_cast<void*>(slots->u1.Function);
+			if (previous == replacement) return previous;
 			const std::uintptr_t value = reinterpret_cast<std::uintptr_t>(replacement);
 			return Write(reinterpret_cast<std::uintptr_t>(&slots->u1.Function), &value, sizeof(value)) ? previous : nullptr;
 		}

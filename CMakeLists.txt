@@ -33,6 +33,7 @@ add_library(gta-sa-mcp SHARED
 	asi/src/game/camera.cpp
 	asi/src/game/catalog.cpp
 	asi/src/game/sdk.cpp
+	asi/src/game/input.cpp
 	asi/src/render/capture.cpp
 	asi/src/render/window.cpp
 	asi/src/editor/scene.cpp
@@ -44,6 +45,7 @@ add_library(gta-sa-mcp SHARED
 	asi/src/commands/models.cpp
 	asi/src/commands/objects.cpp
 	asi/src/commands/player.cpp
+	asi/src/commands/input.cpp
 	asi/src/commands/session.cpp
 	asi/src/commands/world.cpp
 )

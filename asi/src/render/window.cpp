@@ -3,6 +3,8 @@
 #include "../core/config.hpp"
 #include "../core/log.hpp"
 #include "../core/memory.hpp"
+#include "../core/dispatcher.hpp"
+#include <atomic>
 #include "../game/sdk.hpp"
 
 #include <windows.h>
@@ -26,6 +28,21 @@ constexpr std::size_t kReset = 16;
 CreateWindowExAFn g_createWindow = nullptr;
 CreateDeviceFn g_createDevice = nullptr;
 ResetFn g_reset = nullptr;
+using PresentFn = HRESULT (STDMETHODCALLTYPE*)(IDirect3DDevice9*, const RECT*, const RECT*, HWND, const RGNDATA*);
+PresentFn g_present = nullptr;
+std::atomic<unsigned> g_blockedMouse{0};
+BOOL WINAPI IgnoreClip(const RECT*) { ++g_blockedMouse; return TRUE; }
+BOOL WINAPI IgnoreCursorPos(int, int) { ++g_blockedMouse; return TRUE; }
+HWND WINAPI IgnoreCapture(HWND) { ++g_blockedMouse; return nullptr; }
+BOOL WINAPI IgnoreReleaseCapture() { return TRUE; }
+BOOL WINAPI IgnoreForeground(HWND) { return TRUE; }
+HWND WINAPI IgnoreFocus(HWND) { return nullptr; }
+HRESULT STDMETHODCALLTYPE OnPresent(IDirect3DDevice9* device, const RECT* source, const RECT* dest, HWND overrideWindow, const RGNDATA* dirty)
+{
+	// This is the real device beneath SA-MP's proxy: its overlays are drawn now.
+	dispatcher::PumpFrame();
+	return g_present(device, source, dest, overrideWindow, dirty);
+}
 HWND g_window = nullptr;
 
 void ForceWindowed(D3DPRESENT_PARAMETERS* params)
@@ -76,6 +93,8 @@ HRESULT STDMETHODCALLTYPE OnCreateDevice(IDirect3D9* d3d, UINT adapter, D3DDEVTY
 		return result;
 	}
 
+	if (void* previous = mem::HookVtable(*device, 17, reinterpret_cast<void*>(&OnPresent)))
+		g_present = reinterpret_cast<PresentFn>(previous);
 	if (void* previous = mem::HookVtable(*device, kReset, reinterpret_cast<void*>(&OnReset)))
 		g_reset = reinterpret_cast<ResetFn>(previous);
 	g_window = params && params->hDeviceWindow ? params->hDeviceWindow : focus;
@@ -108,6 +127,11 @@ void HookDirect3D()
 HWND WINAPI OnCreateWindowExA(DWORD exStyle, LPCSTR className, LPCSTR title, DWORD style, int x, int y, int width, int height,
 	HWND parent, HMENU menu, HINSTANCE instance, LPVOID param)
 {
+	if (GetConfig().noActivate && !parent)
+	{
+		exStyle |= WS_EX_NOACTIVATE;
+		x = GetConfig().x; y = GetConfig().y;
+	}
 	const HWND created = g_createWindow(exStyle, className, title, style, x, y, width, height, parent, menu, instance, param);
 	static bool done = false;
 	if (!done)
@@ -120,8 +144,40 @@ HWND WINAPI OnCreateWindowExA(DWORD exStyle, LPCSTR className, LPCSTR title, DWO
 
 }
 
+void ProtectDesktop()
+{
+	if (!GetConfig().noActivate) return;
+	// Restrict interception to these processes' modules, never user32 globally.
+	// Even a NULL ClipCursor request is ignored: another app may own confinement.
+	for (HMODULE module : {GetModuleHandleW(nullptr), GetModuleHandleW(L"samp.dll")})
+	{
+		if (!module) continue;
+		mem::HookModuleImport(module, "user32.dll", "ClipCursor", reinterpret_cast<void*>(&IgnoreClip));
+		mem::HookModuleImport(module, "user32.dll", "SetCursorPos", reinterpret_cast<void*>(&IgnoreCursorPos));
+		mem::HookModuleImport(module, "user32.dll", "SetCapture", reinterpret_cast<void*>(&IgnoreCapture));
+		mem::HookModuleImport(module, "user32.dll", "ReleaseCapture", reinterpret_cast<void*>(&IgnoreReleaseCapture));
+		mem::HookModuleImport(module, "user32.dll", "SetForegroundWindow", reinterpret_cast<void*>(&IgnoreForeground));
+		mem::HookModuleImport(module, "user32.dll", "SetFocus", reinterpret_cast<void*>(&IgnoreFocus));
+	}
+}
+void RefreshCaptureHook()
+{
+	if (!GetConfig().windowed) return;
+	auto* exposed = game::At<IDirect3DDevice9*>(0xC97C28);
+	if (!exposed) return;
+	IDirect3DDevice9* actual = nullptr;
+	// Both verified SA-MP proxies forward QueryInterface to the underlying device.
+	// SA-MP can replace the initially returned device/vtable after startup.
+	if (FAILED(exposed->QueryInterface(__uuidof(IDirect3DDevice9), reinterpret_cast<void**>(&actual))) || !actual) return;
+	if (void* previous = mem::HookVtable(actual, 17, reinterpret_cast<void*>(&OnPresent)))
+		g_present = reinterpret_cast<PresentFn>(previous);
+	actual->Release();
+}
+bool CapturesAtPresent() { return g_present != nullptr; }
+unsigned BlockedMouseCalls() { return g_blockedMouse.load(); }
 void Install()
 {
+	ProtectDesktop();
 	if (!GetConfig().windowed)
 		return;
 	void* previous = mem::HookImport("user32.dll", "CreateWindowExA", reinterpret_cast<void*>(&OnCreateWindowExA));

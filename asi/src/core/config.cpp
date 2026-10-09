@@ -47,6 +47,7 @@ Config Load()
 	c.y = Int(L"window", L"y", c.y);
 	c.noActivate = Bool(L"window", L"no_activate", c.noActivate);
 	c.runInBackground = Bool(L"window", L"run_in_background", c.runInBackground);
+	c.isolatePhysicalInput = Bool(L"input", L"isolate_physical", c.isolatePhysicalInput);
 
 	c.skipIntro = Bool(L"startup", L"skip_intro", c.skipIntro);
 	c.autoStart = Bool(L"startup", L"auto_start", c.autoStart);

@@ -1,5 +1,6 @@
 // Commands about the plugin itself; answered without waiting for the game thread.
 #include "common.hpp"
+#include "../render/window.hpp"
 
 
 #include <windows.h>
@@ -30,6 +31,8 @@ json GetStatus(const json&)
 		{ "game_state", StateName(state) },
 		{ "ready", game::InGame() },
 		{ "frame", dispatcher::FrameCount() },
+		{ "capture_at_present", window::CapturesAtPresent() },
+		{ "blocked_mouse_calls", window::BlockedMouseCalls() },
 		{ "resolution", json::array({ game::ScreenWidth(), game::ScreenHeight() }) },
 		{ "methods", dispatcher::Methods() },
 	};

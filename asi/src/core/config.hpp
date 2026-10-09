@@ -15,6 +15,10 @@ struct Config
 	bool noActivate = true;     // never take the focus or the mouse from the desktop
 	bool runInBackground = true; // keep simulating and rendering without the focus
 
+	// [input] Neutralize physical gameplay pad input even when no MCP lease is active.
+	// Does not suppress SA-MP chat/UI hotkeys or OS keyboard polling.
+	bool isolatePhysicalInput = false;
+
 	// [startup]
 	bool skipIntro = true;  // skip logo and intro movies
 	bool autoStart = true;  // start a new game from the main menu without input
