@@ -24,6 +24,16 @@ const char* StateName(int state)
 json GetStatus(const json&)
 {
 	const int state = game::GameState();
+	json resetHistory = json::array();
+	for (const auto& entry : window::ResetHistory()) {
+		resetHistory.push_back({
+			{"ordinal", entry.ordinal}, {"tick_ms", entry.tick},
+			{"has_parameters", entry.hasParameters}, {"completed", entry.completed},
+			{"requested", {{"width", entry.requestedWidth}, {"height", entry.requestedHeight}, {"windowed", entry.requestedWindowed}}},
+			{"forwarded", {{"width", entry.forwardedWidth}, {"height", entry.forwardedHeight}, {"windowed", entry.forwardedWindowed}}},
+			{"hresult", entry.completed ? json(entry.result) : json(nullptr)}
+		});
+	}
 	return {
 		{ "plugin", "gta-sa-mcp" },
 		{ "version", GTA_SA_MCP_VERSION },
@@ -35,6 +45,8 @@ json GetStatus(const json&)
 		{ "blocked_mouse_calls", window::BlockedMouseCalls() },
 		{ "reset_count", window::ResetCount() },
 		{ "last_reset_hresult", window::LastResetResult() },
+		{ "reset_history", resetHistory },
+		{ "reset_history_limit", 64 },
 		{ "resolution", json::array({ game::ScreenWidth(), game::ScreenHeight() }) },
 		{ "methods", dispatcher::Methods() },
 	};

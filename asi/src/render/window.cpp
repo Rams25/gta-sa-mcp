@@ -6,6 +6,7 @@
 #include "../core/dispatcher.hpp"
 #include <atomic>
 #include <cstring>
+#include <mutex>
 #include "../game/sdk.hpp"
 
 #include <windows.h>
@@ -34,6 +35,10 @@ PresentFn g_present = nullptr;
 std::atomic<unsigned> g_blockedMouse{0};
 std::atomic<unsigned> g_resetCount{0};
 std::atomic<long> g_lastResetResult{0};
+std::atomic<unsigned> g_resetOrdinal{0};
+std::mutex g_resetHistoryMutex;
+std::vector<ResetRecord> g_resetHistory;
+constexpr std::size_t kResetHistoryLimit = 64;
 HWND g_window = nullptr;
 BOOL WINAPI BackgroundWindowPos(HWND hwnd, HWND after, int x, int y, int width, int height, UINT flags)
 {
@@ -82,14 +87,48 @@ void FitWindow(const D3DPRESENT_PARAMETERS* params)
 
 HRESULT STDMETHODCALLTYPE OnReset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* params)
 {
-	ForceWindowed(params);
-	// The resolution the game renders at, whatever size its window happens to have.
-	if (params && game::ScreenWidth() > 0 && game::ScreenHeight() > 0)
-	{
-		params->BackBufferWidth = static_cast<UINT>(game::ScreenWidth());
-		params->BackBufferHeight = static_cast<UINT>(game::ScreenHeight());
+	ResetRecord record;
+	record.ordinal = ++g_resetOrdinal;
+	record.tick = GetTickCount();
+	record.hasParameters = params != nullptr;
+	if (params) {
+		record.requestedWidth = params->BackBufferWidth;
+		record.requestedHeight = params->BackBufferHeight;
+		record.requestedWindowed = params->Windowed != FALSE;
 	}
+	ForceWindowed(params);
+	// Keep the native requested dimensions: ScreenWidth/Height can still describe
+	// the old device while GTA is processing a window resize.
+	if (params) {
+		record.forwardedWidth = params->BackBufferWidth;
+		record.forwardedHeight = params->BackBufferHeight;
+		record.forwardedWindowed = params->Windowed != FALSE;
+	}
+	{
+		std::lock_guard<std::mutex> lock(g_resetHistoryMutex);
+		if (g_resetHistory.size() == kResetHistoryLimit)
+			g_resetHistory.erase(g_resetHistory.begin());
+		g_resetHistory.push_back(record);
+	}
+	// Publish and log the attempt before entering the driver; a crash or blocked
+	// call then remains distinguishable from a completed successful Reset.
+	Log("Reset begin #" + std::to_string(record.ordinal) + " tick=" + std::to_string(record.tick)
+		+ " requested=" + std::to_string(record.requestedWidth) + "x" + std::to_string(record.requestedHeight)
+		+ " windowed=" + std::to_string(record.requestedWindowed)
+		+ " forwarded=" + std::to_string(record.forwardedWidth) + "x" + std::to_string(record.forwardedHeight)
+		+ " windowed=" + std::to_string(record.forwardedWindowed));
 	const HRESULT result = g_reset(device, params);
+	{
+		std::lock_guard<std::mutex> lock(g_resetHistoryMutex);
+		for (auto& entry : g_resetHistory) {
+			if (entry.ordinal == record.ordinal) {
+				entry.result = result;
+				entry.completed = true;
+				break;
+			}
+		}
+	}
+	Log("Reset end #" + std::to_string(record.ordinal) + " HRESULT=" + std::to_string(result));
 	g_lastResetResult = result;
 	++g_resetCount;
 	if (SUCCEEDED(result))
@@ -193,6 +232,11 @@ void RefreshCaptureHook()
 }
 bool CapturesAtPresent() { return g_present != nullptr; }
 unsigned BlockedMouseCalls() { return g_blockedMouse.load(); }
+std::vector<ResetRecord> ResetHistory()
+{
+	std::lock_guard<std::mutex> lock(g_resetHistoryMutex);
+	return g_resetHistory;
+}
 unsigned ResetCount() { return g_resetCount.load(); }
 long LastResetResult() { return g_lastResetResult.load(); }
 bool ResetCurrentWindowedMode()

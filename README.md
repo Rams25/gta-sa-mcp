@@ -181,3 +181,35 @@ reproduce Alt+Enter, exclusive fullscreen or a third-party window-mode plugin.
 A paired DL-R1/replacement trial recreated three model previews, preserved a
 style-4 sprite and retained local movement after one successful Reset per client.
 The frontend-menu-active branch has not been exercised by this command's trials.
+
+
+`get_status.reset_history` retains the latest 64 Reset attempts, oldest first.
+Each entry records a monotonic `ordinal`, the start `tick_ms` from Windows
+GetTickCount (which wraps after about 49.7 days), whether parameters were present,
+and the requested and forwarded width, height, and windowed flag. The requested
+values precede the plugin's overrides; forwarded values are copied immediately
+before the native Reset call, before the driver can modify them.
+
+An entry is published before the call, with `completed: false` and `hresult: null`.
+After return it records that individual HRESULT, including failed attempts before
+a successful rollback. The log also writes a begin/end pair for each attempt.
+History snapshots are copied under a mutex and can be read while a Reset is in
+progress. The existing `reset_count` still counts returned calls; its atomic
+counters and the history are not one combined transaction, so a status request
+at a completion boundary may briefly show different counts. This diagnostic
+history does not establish that rendering or game resources recovered correctly.
+
+Reset forwards the native requested back-buffer width and height unchanged.
+The plugin only forces windowed mode and clears the fullscreen refresh rate;
+it does not replace dimensions with GTA's potentially stale screen globals.
+After a successful Reset, FitWindow uses the returned presentation parameters.
+The requested/forwarded history remains available to distinguish these overrides
+from native resize requests. CreateDevice startup is unchanged, and a same-mode
+reset keeps the dimensions requested by GTA. A successful HRESULT at the old
+size is not evidence that a requested resize took effect.
+
+`get_status.resolution` reports GTA logical screen globals, not a fresh D3D
+back-buffer query. After an external HWND resize those globals can lag the real
+window/back buffer. Use screenshot image metadata and the Reset history to
+inspect the actual capture dimensions; do not infer complete UI resize parity
+from the status field or a successful Reset alone.
