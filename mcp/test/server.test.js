@@ -95,6 +95,14 @@ test('tools/list exposes every required tool with a schema', async () => {
   ];
   for (const name of required) assert.ok(names.includes(name), `missing tool ${name}`);
   assert.equal(new Set(names).size, names.length, 'duplicate tool names');
+  const byName = Object.fromEntries(result.tools.map(entry => [entry.name, entry]));
+  assert.deepEqual(byName.set_samp_key.inputSchema.properties.key.enum, ['LEFT', 'RIGHT', 'SHIFT'], 'UI fixtures must not broaden the polling-key allowlist');
+  const ui = byName.samp_ui_event.inputSchema.properties;
+  assert.ok(ui.element.enum.includes('deathlist') && ui.key.enum.includes('F9'));
+  assert.ok(ui.event.enum.includes('hover') && ui.sample.enum.includes('password_long'));
+  assert.match(byName.samp_ui_event.description, /password_long uses native SetText.*272.*ordinary typing caps128/, 'long fixture must disclose its native setter path');
+  assert.equal(ui.x.minimum, 0); assert.equal(ui.x.maximum, 1920);
+  assert.equal(ui.y.minimum, 0); assert.equal(ui.y.maximum, 1080);
   for (const entry of result.tools) {
     assert.equal(entry.inputSchema.type, 'object', entry.name);
     assert.ok(entry.description.length > 20, entry.name);

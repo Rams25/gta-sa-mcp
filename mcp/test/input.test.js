@@ -64,6 +64,9 @@ test('bounded input and release reach the selected plugin pipe unchanged', async
       ['samp_dropped_pickup_fixture',{action:'read'}],
       ['samp_ui_event',{element:'dialog',event:'key',key:'DOWN'}],
       ['samp_ui_event',{element:'dialog',event:'double_click',x:20,y:25}],
+      ['samp_ui_event',{element:'deathlist',event:'key',key:'F9'}],
+      ['samp_ui_event',{element:'dialog',event:'type_fixture',sample:'password_long'}],
+      ['samp_ui_event',{element:'textdraw',event:'hover',x:320,y:240}],
       ['resize_windowed_client',{width:1024,height:768}],
     ]) {
       assert.equal((await call(name,args)).result.isError,undefined);

@@ -29,6 +29,8 @@ for path in [a.original]+a.candidate:
  funcs.update({'chat_key':0x60de0,'editor_message':0x72ff0,'selection_process':0x70eb0,'selection_click':0x71010} if original else {'chat_key':sym('?HandleKeyPress@@'),'editor_message':sym('?MsgProc@CUnnamed2@@',True),'selection_process':sym('?ProcessSelection@CTextDrawPool@@'),'selection_click':sym('?OnClick@CTextDrawPool@@')})
  funcs.update({'object_selection_process':0x6d640,'object_selection_click':0x6d880} if original else {'object_selection_process':sym('?Process@CObjectSelection@@',True),'object_selection_click':sym('?MsgProc@CObjectSelection@@',True)})
  globals={'selection':0x2ac9f8,'editor':0x2ac9f0,'netgame':0x2aca24} if original else {'netgame':sym('?pNetGame@@')}
+ globals.update({'death':0x2aca18} if original else {'death':sym('?pDeathWindow@@')})
+ globals.update({} if original else {'selection_state':sym('?g_selection@@',True)})
  globals.update({'object_selection':0x2ac9f4} if original else {'object_selection_data':sym('?selection@',True)})
  globals.update({'score':0x2ac9dc,'chat':0x2aca14,'dialog':0x2ac9e0} if original else {'score':sym('?pScoreBoard@@'),'chat':sym('?pCmdWindow@@'),'dialog':sym('?pDialog@@')})
  reloc=[e.rva for b in getattr(pe,'DIRECTORY_ENTRY_BASERELOC',[]) for e in b.entries if e.type==3]

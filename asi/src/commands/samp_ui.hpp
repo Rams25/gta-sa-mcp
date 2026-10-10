@@ -25,7 +25,7 @@ inline json Set(const json& p) {
     using samp_headmove::Require; using samp_headmove::Read;
     Require(p.contains("element") && p["element"].is_string() && (p.contains("event") || (p.contains("open") && p["open"].is_boolean())),"element and boolean open required");
     const std::string element=p["element"]; const bool open=p.value("open",false);
-    Require(element=="scoreboard" || element=="chat" || element=="help" || element=="netstats" || element=="hud_hidden" || element=="textdraw" || element=="dialog" || element=="editor" || element=="object_selection","Unsupported fixed UI element");
+    Require(element=="scoreboard" || element=="chat" || element=="help" || element=="netstats" || element=="hud_hidden" || element=="textdraw" || element=="dialog" || element=="editor" || element=="object_selection" || element=="deathlist","Unsupported fixed UI element");
     Require(GetConfig().windowed && GetConfig().noActivate,"Requires windowed/no_activate desktop protection");
     window::ProtectDesktop();
     HMODULE module=GetModuleHandleW(L"samp.dll");Require(module!=nullptr,"SA-MP not loaded");
@@ -76,7 +76,14 @@ inline json Set(const json& p) {
     }
     if(p.contains("event")) {
         const std::string event=p["event"];
-        if(element=="editor") {
+        if(element=="deathlist") {
+            Require(event=="key" && p.value("key","")=="F9","Deathlist accepts only the native F9 key-up handler");
+            Require(GetConfig().pipe=="gta-sa-mcp-original-trial" || GetConfig().pipe=="gta-sa-mcp-rebuilt-trial","Deathlist probe requires isolated trial pipe");
+            Require(pin["globals"].contains("death"),"Deathlist global not reviewed for this build; regenerate pins");
+            object("death"); // Native F9 dereferences this object without a null guard.
+            reinterpret_cast<int(__cdecl*)(DWORD)>(function("chat_key"))(VK_F9);
+            editorResult={{"native_key_up",true},{"key","F9"},{"toggle_dispatched",true}};
+        } else if(element=="editor") {
             Require(GetConfig().pipe=="gta-sa-mcp-original-trial" || GetConfig().pipe=="gta-sa-mcp-rebuilt-trial","Editor probe requires isolated trial pipe");
             Require(nativeLayout,"This build retains the rewritten editor; native editor probe unavailable");
             Require(event=="mode" || event=="adjust" || event=="finish" || event=="icon","Fixed editor mode/adjust/finish event required");
@@ -129,7 +136,7 @@ inline json Set(const json& p) {
                 reinterpret_cast<void(__thiscall*)(void*,int)>(function("editor_finish"))(editor,result=="save"?1:0);
                 Read(editor+0x80,&active,4);Require(active==0,"Editor did not finish");editorResult["result"]=result;
             }
-        } else if((element=="textdraw" || element=="object_selection") && event=="click") {
+        } else if((element=="textdraw" || element=="object_selection") && (event=="click" || (element=="textdraw" && event=="hover"))) {
             Require(nativeLayout,"Textdraw hit-test requires native layout");
             Require(GetConfig().pipe=="gta-sa-mcp-original-trial" || GetConfig().pipe=="gta-sa-mcp-rebuilt-trial","Selection probe requires isolated pipe");
             const int x=p.value("x",-1),y=p.value("y",-1);
@@ -145,11 +152,27 @@ inline json Set(const json& p) {
             else {BYTE* pools=nullptr;Read(object("netgame")+0x3DE,&pools,4);Require(pools!=nullptr,"NetGame pools unavailable");Read(pools+0x20,&selector,4);}
             Require(selector!=nullptr,"Textdraw selector unavailable");
             const bool objectSelection=element=="object_selection";
-            auto process=function(objectSelection?"object_selection_process":"selection_process");auto click=function(objectSelection?"object_selection_click":"selection_click");
+            auto process=function(objectSelection?"object_selection_process":"selection_process");
+            BYTE* selectionState=nullptr;
+            if(event=="hover") {
+                if(original)selectionState=selector;
+                else {
+                    Require(pin["globals"].contains("selection_state") && pin["globals"]["selection_state"].get<DWORD>()!=0,"Selection state not reviewed for this build; regenerate pins");
+                    selectionState=base+pin["globals"]["selection_state"].get<DWORD>();
+                }
+                DWORD active=0;Read(selectionState,&active,4);Require(active!=0,"Begin textdraw selection through server fixture first");
+            }
+            auto click=event=="click"?function(objectSelection?"object_selection_click":"selection_click"):nullptr;
             CursorScope cursor(module,point);Require(cursor.previous!=nullptr,"Native cursor import unavailable");
-            reinterpret_cast<void(__thiscall*)(void*)>(process)(selector);
-            if(original || objectSelection)reinterpret_cast<int(__thiscall*)(void*,UINT,WPARAM,LPARAM)>(click)(selector,WM_LBUTTONUP,0,MAKELPARAM(x,y));
-            else reinterpret_cast<bool(__thiscall*)(void*,int,int)>(click)(selector,x,y);
+            if(original || objectSelection)reinterpret_cast<void(__thiscall*)(void*)>(process)(selector);
+            else reinterpret_cast<void(__cdecl*)()>(process)();
+            if(event=="click") {
+                if(original || objectSelection)reinterpret_cast<int(__thiscall*)(void*,UINT,WPARAM,LPARAM)>(click)(selector,WM_LBUTTONUP,0,MAKELPARAM(x,y));
+                else reinterpret_cast<bool(__cdecl*)(int,int)>(click)(x,y);
+            } else {
+                WORD hovered=0xFFFF;DWORD color=0;Read(selectionState+8,&hovered,2);Read(selectionState+4,&color,4);
+                editorResult.update({{"hovered_textdraw",hovered},{"hover_color",color},{"click_dispatched",false},{"observation","immediate native state; next render pass may replace hover"}});
+            }
             if(objectSelection) {WORD hovered=0xFFFF;Read(selector+4,&hovered,2);editorResult["selected_object"]=hovered;}
             editorResult.update({{"native_hit_test",true},{"x",x},{"y",y},{"scope","temporary per-process cursor import; desktop cursor unchanged"}});
         } else if(element=="chat" && event=="key") {
@@ -160,9 +183,26 @@ inline json Set(const json& p) {
         } else if(event=="type_fixture") {
             Require(element=="dialog","Typing fixture is limited to visible server dialog");
             BYTE* owner=object("dialog");BYTE visible=0;Read(owner+0x28,&visible,1);Require(visible!=0,"Dialog not visible");
-            const std::string sample=p.value("sample","");Require(sample=="ascii" || sample=="accent" || sample=="wide" || sample=="overwrite","Fixed typing sample required");
+            const std::string sample=p.value("sample","");Require(sample=="ascii" || sample=="accent" || sample=="wide" || sample=="overwrite" || sample=="password_long","Fixed typing sample required");
             auto proc=reinterpret_cast<LRESULT(__stdcall*)(HWND,UINT,WPARAM,LPARAM)>(function("window_message"));
-            if(sample=="overwrite") {
+            if(sample=="password_long") {
+                Require(nativeLayout,"Long password fixture requires reviewed native dialog layout");
+                Require(GetConfig().pipe=="gta-sa-mcp-original-trial" || GetConfig().pipe=="gta-sa-mcp-rebuilt-trial","Long password fixture requires isolated trial pipe");
+                int style=0;Read(owner+0x2C,&style,4);Require(style==3,"Long password fixture requires password dialog style3");
+                BYTE* edit=nullptr;Read(owner+0x24,&edit,4);Require(edit!=nullptr,"Password edit missing");
+                const wchar_t* text=nullptr;Read(edit+0x4D,&text,4);Require(text!=nullptr,"Password edit text missing");
+                wchar_t first=0;Read(text,&first,sizeof(first));Require(first==0,"Open a fresh empty password dialog before long fixture");
+                BYTE insert=0;Read(edit+0x11D,&insert,1);Require(insert==1,"Long password fixture requires insert mode");
+                // WM_CHAR intentionally stops at128 ACP bytes in DL-R1. Exercise
+                // the >256 password draw branch through the bounded native setter.
+                char fixture[273]={};for(unsigned i=0;i<272;++i)fixture[i]=static_cast<char>('A'+i%26);
+                reinterpret_cast<void(__thiscall*)(void*,const char*,bool)>(function("edit_text"))(edit,fixture,false);
+                Read(edit+0x4D,&text,4);Require(text!=nullptr,"Password edit text missing after typing");
+                unsigned length=0;
+                for(;length<=272;++length){wchar_t ch=0;Read(text+length,&ch,sizeof(ch));if(!ch)break;}
+                Require(length==272,"Native password setter did not retain the fixed272-character fixture");
+                editorResult={{"sample","password_long"},{"path","native_SetText"},{"characters_sent",272},{"characters_stored",length},{"submitted",false}};
+            } else if(sample=="overwrite") {
                 Require(!original && nativeLayout,"Original overwrite is proven memory corruption; machine witness substitutes for destructive live test");
                 const unsigned offset=0x24;
                 BYTE* edit=nullptr;Read(owner+offset,&edit,4);Require(edit!=nullptr,"Dialog edit missing");
@@ -221,8 +261,8 @@ inline json Set(const json& p) {
                 }
             }
         }
-    } else if(element=="editor") {
-        Require(false,"Native editor helper requires a fixed event");
+    } else if(element=="editor" || element=="deathlist") {
+        Require(false,"Native editor/deathlist helper requires a fixed event");
     } else if(element=="textdraw") {
         Require(!open,"Begin selection through the isolated server fixture");
         BYTE* selection=nullptr;
