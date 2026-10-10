@@ -2,6 +2,7 @@
 #include "../game/input.hpp"
 #include "samp_headmove.hpp"
 #include "samp_ui.hpp"
+#include "samp_ui_read.hpp"
 
 namespace {
 json Status() {
@@ -59,6 +60,7 @@ json Release(const json&) {game::input::Release();return Status();}
 json Get(const json&) {return Status();}
 }
 void RegisterInputCommands() {
+    dispatcher::Register("get_samp_ui",Phase::Tick,samp_ui::Get);
     dispatcher::Register("set_samp_ui",Phase::Tick,samp_ui::Set);
     dispatcher::Register("samp_ui_event",Phase::Tick,samp_ui::Set);
     dispatcher::Register("submit_samp_command",Phase::Tick,[](const json& p){json q=p;q["element"]="chat";q["event"]="command";return samp_ui::Set(q);});

@@ -4,6 +4,7 @@ Requires pefile. Repeat --candidate DLL (adjacent .map). Run after each reviewed
 import argparse,hashlib,json,re
 from pathlib import Path
 import pefile
+import capstone
 p=argparse.ArgumentParser();p.add_argument('--original',type=Path,required=True);p.add_argument('--candidate',type=Path,action='append',default=[]);p.add_argument('--score-sort-offset',type=lambda s:int(s,0),choices=[0x1c,0x40],help='Reviewed candidate constructor layout only; permits fallback when setter is linker-eliminated');a=p.parse_args()
 builds=[]
 for path in [a.original]+a.candidate:
@@ -33,6 +34,18 @@ for path in [a.original]+a.candidate:
  globals.update({} if original else {'selection_state':sym('?g_selection@@',True)})
  globals.update({'object_selection':0x2ac9f4} if original else {'object_selection_data':sym('?selection@',True)})
  globals.update({'score':0x2ac9dc,'chat':0x2aca14,'dialog':0x2ac9e0} if original else {'score':sym('?pScoreBoard@@'),'chat':sym('?pCmdWindow@@'),'dialog':sym('?pDialog@@')})
+ telemetry=None
+ if original or a.score_sort_offset==0x40:
+  # Exact-byte witnesses for the two different native DXUT container ABIs.
+  witness={'selected':0x888f0,'add':0x8a270,'scroll':0x88230} if original else {'selected':sym('?GetSelectedIndex@CDXUTListBox@@'),'add':sym('?AddItem@CDXUTListBox@@QAEJPBDHK@Z'),'scroll':sym('?Scroll@CDXUTScrollBar@@')}
+  md=capstone.Cs(capstone.CS_ARCH_X86,capstone.CS_MODE_32)
+  asm={k:'\n'.join(i.mnemonic+' '+i.op_str for i in md.disasm(pe.get_data(v,320 if k=='add' else 110),v)) for k,v in witness.items()}
+  array,count,selected,scroll,position=(0x14c,0x150,0x143,0x5d,0x8e) if original else (0x158,0x15c,0x14c,0x80,0x90)
+  for offset in (array,count,selected):assert hex(offset) in asm['selected'],(path,'selected',hex(offset))
+  for offset in (0x29e,0x284,0x299,0x101,array,scroll):assert hex(offset) in asm['add'],(path,'add',hex(offset))
+  assert hex(position) in asm['scroll'],(path,'scroll')
+  globals.update({'chat_window':0x2aca10,'plate_renderer':0x2aca30} if original else {'chat_window':sym('?pChatWindow@@'),'plate_renderer':sym('?pLicensePlate@@')})
+  telemetry={'array':array,'count':count,'selected':selected,'scroll':scroll,'position':position,'witness':witness}
  reloc=[e.rva for b in getattr(pe,'DIRECTORY_ENTRY_BASERELOC',[]) for e in b.entries if e.type==3]
  checked={}
  for name,rva in funcs.items():
@@ -41,7 +54,7 @@ for path in [a.original]+a.candidate:
   for r in reloc:
    for i in range(max(0,r-rva),min(24,r-rva+4)):mask[i]=0
   checked[name]={'rva':rva,'bytes':list(raw),'mask':mask}
- builds.append({'sha256':sha,'timestamp':pe.FILE_HEADER.TimeDateStamp,'size':pe.OPTIONAL_HEADER.SizeOfImage,'original':original,'score_sort_offset':0x40 if original else a.score_sort_offset,'native_layout':original or a.score_sort_offset == 0x40,'globals':globals,'functions':checked})
+ builds.append({'sha256':sha,'timestamp':pe.FILE_HEADER.TimeDateStamp,'size':pe.OPTIONAL_HEADER.SizeOfImage,'original':original,'score_sort_offset':0x40 if original else a.score_sort_offset,'native_layout':original or a.score_sort_offset == 0x40,'globals':globals,'functions':checked,'telemetry':telemetry})
 out=Path(__file__).resolve().parents[1]/'asi/src/commands/samp_ui_pins.hpp'
 if out.exists():
  prior=json.loads(''.join(re.findall(r'R"pins\((.*?)\)pins"',out.read_text(),re.S)))
