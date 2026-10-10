@@ -2,6 +2,7 @@
 import { tool, vec3, number, integer, boolean, entityRef, objectId } from './schema.js';
 
 export default [
+  tool('invoke_samp_headmove', 'Invokes the normally registered /headmove handler on the selected game thread. Fixed test command for pinned original DL-R1 and phase324 builds only; refuses unknown builds. No OS input or direct flag write. Changes and persists the client head-movement setting; does not simulate chat text entry or recall.'),
   tool('set_samp_key', 'Holds LEFT, RIGHT or SHIFT for SA-MP direct key polling in this process only. ' +
     'Hooks only samp.dll GetAsyncKeyState import; no OS input, focus or desktop actions. ' +
     'The other two exposed keys are neutral during the lease; other keys forward unchanged. Idle class keys are neutral when input.isolate_physical is enabled. ' +

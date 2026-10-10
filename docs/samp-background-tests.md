@@ -41,3 +41,15 @@ Evidence is preserved in the SA-MP workspace at
 `re/tooling/gta-sa-mcp/` and
 `.local/development-captures/20261009-gta-sa-mcp/`.
 See the README for configuration and local build commands.
+
+## Fixed head-movement command test
+
+`invoke_samp_headmove` queues a game-thread call through the client's own
+registered `headmove` lookup and handler. It accepts no arguments, code addresses
+or command text. It pins the original DL-R1 and phase324 candidate by disk
+SHA256, loaded PE identity and relocated prologues, and verifies the registered
+handler target (including one incremental-link thunk). Unknown builds fail.
+It invokes the real configuration/chat effects; it does not simulate text entry,
+recall history, keyboard, window messages or desktop focus. Back up sa-mp.cfg
+before testing and restore it afterward. Successful return means the handler
+returned, not that its configuration write or visual effects succeeded.
