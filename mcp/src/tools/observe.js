@@ -11,7 +11,7 @@ const imageOptions = {
 export default [
   tool('get_player',
     'Player state: position [x, y, z], heading (degrees, 0 = north/+Y, counter-clockwise), velocity, health, ' +
-    'interior, vehicle if any, and the ground height below.'),
+    'interior, vehicle if any, ground height, and read-only native health/pad-control/collision/gravity flags sampled on game tick.'),
 
   tool('get_camera',
     'The camera the last frame was rendered with: position, forward/up vectors, heading and pitch in degrees, ' +

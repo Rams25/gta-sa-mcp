@@ -16,6 +16,19 @@ json PlayerState()
 	out["heading"] = cmd::Round(game::Deg(game::entity::Heading(body)), 2);
 	out["velocity"] = cmd::ToJson(game::Field<Vec3>(body, 0x44) * 50.0f, 2); // per frame -> m/s
 	out["health"] = cmd::Round(game::Field<float>(ped, 0x540), 1);
+    // Read-only native evidence: GTA US CPad getters (53FB80 etc.) gate on this word.
+    const auto controls = game::At<unsigned short>(0xB73458 + 0x10E);
+    const auto flags = game::Field<unsigned>(ped, 0x1C);
+    out["native_state"] = {
+        {"ped_health",game::Field<float>(ped,0x540)},
+        {"pad0_disable_player_controls",controls},
+        {"pad0_controls_enabled",controls==0},
+        {"ped_processing_flags",flags},
+        {"ped_collision_enabled",(flags&1u)!=0},
+        {"ped_gravity_processing_enabled",(flags&0x80000002u)==0},
+        {"ped_gravity_flag_mask",flags&0x80000002u},
+        {"sample_phase","game_tick"}
+    };
 	out["interior"] = game::entity::Area(ped);
 	out["in_vehicle"] = vehicle != nullptr;
 	out["vehicle"] = cmd::Describe(vehicle);

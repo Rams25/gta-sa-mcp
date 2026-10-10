@@ -28,6 +28,34 @@ inline json Set(const json& p) {
     };
     auto object=[&](const char* name)->BYTE* {BYTE* obj=nullptr;Read(base+pin["globals"][name].get<DWORD>(),&obj,4);Require(obj!=nullptr,"UI object not initialized");return obj;};
     const bool original=pin["original"];
+    json sortResult;
+    if(p.contains("sort_mode")) {
+        Require(element=="scoreboard" && !p.contains("event"),"sort_mode requires scoreboard open/close request");
+        Require(p["sort_mode"].is_number_integer(),"sort_mode must be integer 0..2");
+        const auto mode=p["sort_mode"].get<long long>();Require(mode>=0 && mode<=2,"sort_mode outside 0..2");
+        BYTE* score=object("score");
+        if(original || !pin["functions"].contains("score_sort")) {
+            // Fixed reviewed field fallback only; constructor layout checked offline for this SHA.
+            Require(pin.contains("score_sort_offset") && pin["score_sort_offset"].is_number_integer(),"Sort field not reviewed for this build");
+            const auto offset=pin["score_sort_offset"].get<unsigned>();
+            Require(offset==(original?0x40u:0x1cu),"Unexpected sort field layout");
+            if(!original)function("score_ctor");
+            auto refresh=function("score_update");
+            const int value=static_cast<int>(mode);int previous=0;Read(score+offset,&previous,4);
+            SIZE_T written=0;Require(WriteProcessMemory(GetCurrentProcess(),score+offset,&value,4,&written)&&written==4,"Score sort write failed");
+            reinterpret_cast<void(__thiscall*)(void*)>(refresh)(score);
+            sortResult={{"previous",previous},{"requested",value}};
+        } else {
+            auto setter=function("score_sort");
+            reinterpret_cast<void(__thiscall*)(void*,int)>(setter)(score,static_cast<int>(mode));
+            sortResult={{"requested",static_cast<int>(mode)}};
+        }
+        if(pin.contains("score_sort_offset") && pin["score_sort_offset"].is_number_integer()) {
+            int applied=0;Read(score+pin["score_sort_offset"].get<unsigned>(),&applied,4);
+            sortResult["applied"]=applied;
+            Require(applied==mode,"Score sort selector did not retain requested mode");
+        }
+    }
     if(p.contains("event")) {
         const std::string event=p["event"];
         if(event=="command") {
@@ -94,6 +122,6 @@ inline json Set(const json& p) {
         else reinterpret_cast<void(__thiscall*)(void*)>(target)(obj);
     }
     window::ProtectDesktop();
-    return {{"dispatched",true},{"element",element},{"requested_open",open},{"samp_sha256",sha},{"scope","fixed native UI method or bounded F5 polling; inspect screenshot for visible result; no OS input"}};
+    return {{"dispatched",true},{"element",element},{"requested_open",open},{"sort_mode",sortResult},{"samp_sha256",sha},{"scope","fixed native UI method or bounded F5 polling; inspect screenshot for visible result; no OS input"}};
 }
 }

@@ -8,6 +8,7 @@ export default [
   tool('set_samp_ui', 'Fixed per-process SA-MP UI dispatch on the game thread, exact-build allowlist. Scoreboard/chat call the real open/close methods; help calls the original help routine and closes only local help. Netstats holds F5 polling for a bounded lease, then releases. Requires windowed/no_activate; never sends desktop input. Inspect capture for visible acceptance.', {
     element: { type: 'string', enum: ['scoreboard', 'chat', 'help', 'netstats'] },
     open: boolean('Open or close the selected UI.'),
+    sort_mode: integer('Scoreboard only: 0 collection order, 1 name, 2 descending score; uses fixed native selector/setter.', {minimum:0,maximum:2}),
     duration_ms: integer('Netstats lease only, default1000ms.', {minimum:1,maximum:5000}),
   }, ['element','open']),
   tool('invoke_samp_headmove', 'Invokes the normally registered /headmove handler on the selected game thread. Fixed test command for pinned original DL-R1 and phase324 builds only; refuses unknown builds. No OS input or direct flag write. Changes and persists the client head-movement setting; does not simulate chat text entry or recall.'),
