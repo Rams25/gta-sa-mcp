@@ -8,7 +8,7 @@ inline json Set(const json& p) {
     using samp_headmove::Require; using samp_headmove::Read;
     Require(p.contains("element") && p["element"].is_string() && (p.contains("event") || (p.contains("open") && p["open"].is_boolean())),"element and boolean open required");
     const std::string element=p["element"]; const bool open=p.value("open",false);
-    Require(element=="scoreboard" || element=="chat" || element=="help" || element=="netstats" || element=="dialog","Unsupported fixed UI element");
+    Require(element=="scoreboard" || element=="chat" || element=="help" || element=="netstats" || element=="hud_hidden" || element=="textdraw" || element=="dialog","Unsupported fixed UI element");
     Require(GetConfig().windowed && GetConfig().noActivate,"Requires windowed/no_activate desktop protection");
     window::ProtectDesktop();
     HMODULE module=GetModuleHandleW(L"samp.dll");Require(module!=nullptr,"SA-MP not loaded");
@@ -58,7 +58,14 @@ inline json Set(const json& p) {
     }
     if(p.contains("event")) {
         const std::string event=p["event"];
-        if(event=="command") {
+        if(event=="type_fixture") {
+            Require(element=="dialog","Typing fixture is limited to visible server dialog");
+            BYTE* owner=object("dialog");BYTE visible=0;Read(owner+0x28,&visible,1);Require(visible!=0,"Dialog not visible");
+            const std::string sample=p.value("sample","");Require(sample=="ascii" || sample=="accent" || sample=="wide","Fixed typing sample required");
+            auto proc=reinterpret_cast<LRESULT(__stdcall*)(HWND,UINT,WPARAM,LPARAM)>(function("window_message"));
+            if(sample=="ascii")for(unsigned ch: {'U','_','1'})proc(nullptr,WM_CHAR,ch,0);
+            else proc(nullptr,WM_CHAR,sample=="accent"?0xE9:0x4E2D,0);
+        } else if(event=="command") {
             Require(element=="chat","Command requires chat");
             const std::string command=p.value("text","");
             Require(command=="/help" || command=="/shop" || command=="/kill","Only fixed test commands allowed");
@@ -96,11 +103,17 @@ inline json Set(const json& p) {
                 }
             }
         }
-    } else if(element=="netstats") {
+    } else if(element=="textdraw") {
+        Require(!open,"Begin selection through the isolated server fixture");
+        BYTE* selection=original?object("selection"):reinterpret_cast<BYTE*(__thiscall*)(void*)>(function("textdraw_pool"))(object("netgame"));
+        Require(selection!=nullptr,"Textdraw selector not initialized");
+        if(original)reinterpret_cast<void(__thiscall*)(void*)>(function("selection_cancel"))(selection);
+        else reinterpret_cast<void(__thiscall*)(void*,bool)>(function("selection_cancel"))(selection,true);
+    } else if(element=="netstats" || element=="hud_hidden") {
         if(open){
             unsigned duration=1000;
             if(p.contains("duration_ms")){Require(p["duration_ms"].is_number_unsigned() || p["duration_ms"].is_number_integer(),"duration_ms must be integer");const auto value=p["duration_ms"].get<long long>();Require(value>=1 && value<=5000,"duration_ms outside1..5000");duration=static_cast<unsigned>(value);}
-            Require(game::input::StartSampKey(VK_F5,duration),"SA-MP key poll hook unavailable");
+            Require(game::input::StartSampKey(element=="netstats"?VK_F5:VK_F10,duration),"SA-MP key poll hook unavailable");
         } else game::input::ReleaseSampKey();
     } else if(element=="help") {
         BYTE* dialog=object("dialog");

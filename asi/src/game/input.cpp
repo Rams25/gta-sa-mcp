@@ -29,7 +29,7 @@ int sampKey = 0;
 ULONGLONG sampKeyDeadline = 0;
 unsigned sampKeyPolls = 0, sampPressedPolls = 0, sampIsolatedPolls = 0;
 const char* sampKeyReason = "idle";
-bool IsSampTestKey(int key) { return key == VK_LEFT || key == VK_RIGHT || key == VK_SHIFT || key == VK_F5; }
+bool IsSampTestKey(int key) { return key == VK_LEFT || key == VK_RIGHT || key == VK_SHIFT || key == VK_F5 || key == VK_F10; }
 void ExpireSampKey() {
     if (sampKeyActive && GetTickCount64() >= sampKeyDeadline) {
         sampKeyActive = false; sampKeyReason = "expired";
