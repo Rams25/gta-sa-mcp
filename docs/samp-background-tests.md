@@ -67,3 +67,5 @@ it does not demonstrate a normal gameplay creation path. Record count, handle an
 owner before and after server RPC151, checking that the other owner's pickup stays.
 Remove both seeded owners with RPC151 before retiring the fixture. The transport
 unit test covers command routing only; native execution needs the paired live test.
+
+Paired live validation exercised the creator/removal fixture on the original and O clients. UI pins additionally cover Q: at a genuine 1024x768 startup, textdraws were visible before opening the scoreboard, hidden while it was open, and visible again after closing it on both clients. Pickup creation remains deliberately tool-seeded; the pickup fixture does not allow the Q build.
