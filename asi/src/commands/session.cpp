@@ -52,6 +52,17 @@ json GetStatus(const json&)
 	};
 }
 
+json WindowedModes(const json&) {
+    json modes=json::array();for(const auto& m:window::WindowedModes())modes.push_back({{"index",m.index},{"width",m.width},{"height",m.height}});
+    return {{"current_index",game::At<int>(0xC97C18)},{"modes",modes}};
+}
+json ChangeWindowedMode(const json& p) {
+    if(!p.contains("mode_index") || !p["mode_index"].is_number_integer())throw CommandError("invalid_params","mode_index must be integer from get_windowed_modes");
+    const auto mode=p["mode_index"].get<long long>();if(mode<0 || mode>511)throw CommandError("invalid_params","mode_index outside0..511");
+    const int previous=game::At<int>(0xC97C18);const unsigned before=window::ResetCount();
+    if(!window::ResetCurrentWindowedMode(static_cast<int>(mode)))throw CommandError("reset_unavailable","Requires verified native mode,640..1920x480..1080,in-game windowed/no_activate");
+    return {{"previous_mode_index",previous},{"requested_mode_index",mode},{"reset_calls",window::ResetCount()-before},{"hresult",window::LastResetResult()},{"scope","native windowed mode request; check reset history and restore previous index; no exclusive fullscreen"}};
+}
 json ResetWindowed(const json&)
 {
 	const unsigned before = window::ResetCount();
@@ -66,5 +77,7 @@ json ResetWindowed(const json&)
 void RegisterSessionCommands()
 {
 	dispatcher::Register("get_status", Phase::Direct, GetStatus);
+	dispatcher::Register("get_windowed_modes", Phase::Tick, WindowedModes);
+	dispatcher::Register("change_windowed_mode", Phase::Tick, ChangeWindowedMode);
 	dispatcher::Register("reset_windowed_device", Phase::Tick, ResetWindowed);
 }

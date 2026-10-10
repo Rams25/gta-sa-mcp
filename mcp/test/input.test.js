@@ -59,6 +59,14 @@ test('bounded input and release reach the selected plugin pipe unchanged', async
     assert.equal((await call('set_samp_key', keyLease)).result.isError, undefined);
     assert.equal(received.at(-1).method, 'set_samp_key');
     assert.deepEqual(received.at(-1).params, keyLease);
+    const ui = { element: 'scoreboard', open: true };
+    assert.equal((await call('set_samp_ui', ui)).result.isError, undefined);
+    assert.equal(received.at(-1).method, 'set_samp_ui');
+    assert.deepEqual(received.at(-1).params, ui);
+    await call('get_windowed_modes', {});
+    assert.equal(received.at(-1).method, 'get_windowed_modes');
+    await call('change_windowed_mode', { mode_index: 1 });
+    assert.equal(received.at(-1).method, 'change_windowed_mode');
     await call('get_samp_key', {});
     assert.equal(received.at(-1).method, 'get_samp_key');
     await call('release_samp_key', {});

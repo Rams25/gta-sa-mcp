@@ -1,6 +1,7 @@
 #include "common.hpp"
 #include "../game/input.hpp"
 #include "samp_headmove.hpp"
+#include "samp_ui.hpp"
 
 namespace {
 json Status() {
@@ -58,6 +59,7 @@ json Release(const json&) {game::input::Release();return Status();}
 json Get(const json&) {return Status();}
 }
 void RegisterInputCommands() {
+    dispatcher::Register("set_samp_ui",Phase::Tick,samp_ui::Set);
     dispatcher::Register("invoke_samp_headmove",Phase::Tick,samp_headmove::Invoke);
     dispatcher::Register("set_samp_key",Phase::Tick,SampSet);
     dispatcher::Register("release_samp_key",Phase::Direct,SampRelease);

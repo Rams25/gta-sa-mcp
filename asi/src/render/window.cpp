@@ -247,7 +247,17 @@ std::vector<ResetRecord> ResetHistory()
 }
 unsigned ResetCount() { return g_resetCount.load(); }
 long LastResetResult() { return g_lastResetResult.load(); }
-bool ResetCurrentWindowedMode()
+std::vector<WindowedMode> WindowedModes()
+{
+    std::vector<WindowedMode> out;
+    if (!GetConfig().windowed || !GetConfig().noActivate || !game::InGame()) return out;
+    auto* modes=game::At<int*>(0xC97C48);const int count=game::At<int>(0xC97C40);
+    if(!modes || count<1 || count>512)return out;
+    for(int i=0;i<count;++i)if(modes[i*5]>=640 && modes[i*5]<=1920 && modes[i*5+1]>=480 && modes[i*5+1]<=1080)
+        out.push_back({i,modes[i*5],modes[i*5+1]});
+    return out;
+}
+bool ResetCurrentWindowedMode(int requestedMode)
 {
 	// Test command, game thread only. Use GTA's full video-mode lifecycle, not a
 	// direct D3D Reset that would skip RenderWare's resource callbacks.
@@ -257,10 +267,11 @@ bool ResetCurrentWindowedMode()
 	RefreshCaptureHook();
 	if (!g_reset) return false;
 	auto& current = game::At<int>(0xC97C18);
-	const int mode = current;
+	const int mode = requestedMode < 0 ? current : requestedMode;
 	auto* modes = game::At<int*>(0xC97C48);
 	const int count = game::At<int>(0xC97C40);
-	if (!modes || mode < 0 || mode >= count) return false;
+	if (!modes || count<1 || count>512 || mode < 0 || mode >= count) return false;
+    if(requestedMode>=0 && (modes[mode*5]<640 || modes[mode*5]>1920 || modes[mode*5+1]<480 || modes[mode*5+1]>1080))return false;
 	int& flags = modes[mode * 5 + 4];
 	const int savedFlags = flags;
 	flags &= ~1; // Never request exclusive fullscreen on the shared desktop.

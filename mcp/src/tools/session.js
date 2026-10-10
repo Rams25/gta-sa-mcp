@@ -53,6 +53,8 @@ export default [
     'Stage 3 uses AL (value & 255). No pre-call markers or full nested invocation correlation.'),
   tool('end_roadsign_trace',
     'Stop recording and flush the mapped roadsign trace. Hooks remain installed until game exit; native results remain unchanged.'),
+  tool('get_windowed_modes', 'Lists existing native mode indices bounded640..1920x480..1080 for safe windowed requests, plus current index.'),
+  tool('change_windowed_mode', 'Requests an existing native GTA video mode through the full RenderWare lifecycle, forcing windowed/no_activate. No exclusive display-mode change. Record previous_mode_index and restore it; inspect reset_history for actual forwarded dimensions and HRESULT.', {mode_index: {type:'integer', minimum:0, maximum:511}}, ['mode_index']),
   tool('reset_windowed_device',
     'Test-only: recreate the current video mode through GTA on the game thread. Requires windowed/no_activate mode. ' +
     'Keeps the desktop out of exclusive fullscreen. Returns actual native Reset call count and HRESULT; inspect subsequent rendering separately.'),

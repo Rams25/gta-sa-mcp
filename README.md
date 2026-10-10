@@ -242,3 +242,11 @@ bootstrap retry before dispatching frame work if SA-MP loads late. Status expose
 This isolates the test controls; it does not establish that physical SHIFT
 caused any previously observed automatic spawn. It is not isolation of all UI
 keys, nor of any code that bypasses samp.dll's GetAsyncKeyState import.
+
+### Paired SA-MP interface probes
+
+`set_samp_ui` takes `element` (`scoreboard`, `chat`, `help`, `netstats`) and `open`. It runs fixed UI methods on the game thread; netstats uses a process-local F5 polling lease (1..5000ms). No OS keyboard, mouse or focus input is sent. Successful dispatch is not screenshot acceptance. Help refuses to dismiss a server dialog. Physical F5 polling is isolated alongside class keys when isolation is enabled. Original DL-R1 and each candidate must be explicitly allowlisted.
+
+After reviewing a new candidate UI ABI, regenerate pins with `python scripts/generate-samp-ui-pins.py --original ORIGINAL_DLL --candidate CANDIDATE_DLL` (adjacent MSVC `.map` required), then rebuild the ASI. Pins include SHA256, PE identity and relocation-masked live entry bytes. No callable address comes from MCP. Baseline H has no help implementation and refuses help opening.
+
+`get_windowed_modes` lists bounded native modes. `change_windowed_mode` requests one through GTA745C70 with exclusive flags cleared, retaining no-activation protections. Save and restore `previous_mode_index`. Check `get_status.reset_history` for completed Reset calls and actual forwarded dimensions. This is a windowed lifecycle probe, not exclusive fullscreen reproduction. Keep the independent mouse watcher running.
