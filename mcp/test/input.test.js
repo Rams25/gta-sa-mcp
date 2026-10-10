@@ -61,6 +61,7 @@ test('bounded input and release reach the selected plugin pipe unchanged', async
     assert.deepEqual(received.at(-1).params, keyLease);
     for (const [name, args] of [
       ['submit_samp_command',{text:'/help'}],
+      ['samp_dropped_pickup_fixture',{action:'read'}],
       ['samp_ui_event',{element:'dialog',event:'key',key:'DOWN'}],
       ['samp_ui_event',{element:'dialog',event:'double_click',x:20,y:25}],
       ['resize_windowed_client',{width:1024,height:768}],

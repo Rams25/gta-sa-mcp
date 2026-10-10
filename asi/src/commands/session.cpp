@@ -1,6 +1,7 @@
 // Commands about the plugin itself; answered without waiting for the game thread.
 #include "common.hpp"
 #include "../render/window.hpp"
+#include "samp_pickup_fixture.hpp"
 
 
 #include <windows.h>
@@ -84,6 +85,7 @@ json ResetWindowed(const json&)
 
 void RegisterSessionCommands()
 {
+	dispatcher::Register("samp_dropped_pickup_fixture", Phase::Tick, samp_pickup_fixture::Invoke);
 	dispatcher::Register("resize_windowed_client", Phase::Tick, ResizeWindowed);
 	dispatcher::Register("get_status", Phase::Direct, GetStatus);
 	dispatcher::Register("get_windowed_modes", Phase::Tick, WindowedModes);

@@ -53,3 +53,17 @@ It invokes the real configuration/chat effects; it does not simulate text entry,
 recall history, keyboard, window messages or desktop focus. Back up sa-mp.cfg
 before testing and restore it afterward. Successful return means the handler
 returned, not that its configuration write or visual effects succeeded.
+
+### Dropped pickup removal fixture
+
+`samp_dropped_pickup_fixture` is restricted to pinned original, N and O client builds
+and the two isolated trial pipes. `action: "read"` observes the pickup pool;
+`action: "seed", owner: 0` (or 1) invokes the actual dormant dropped-pickup creator
+on the game thread. The model (346), ammunition (7), and separated positions near
+1640,-2500,13.6 are fixed. No arbitrary address or resource can be supplied.
+
+This deliberately prepares otherwise unreachable state for an RPC151 removal test;
+it does not demonstrate a normal gameplay creation path. Record count, handle and
+owner before and after server RPC151, checking that the other owner's pickup stays.
+Remove both seeded owners with RPC151 before retiring the fixture. The transport
+unit test covers command routing only; native execution needs the paired live test.
