@@ -60,6 +60,8 @@ json Get(const json&) {return Status();}
 }
 void RegisterInputCommands() {
     dispatcher::Register("set_samp_ui",Phase::Tick,samp_ui::Set);
+    dispatcher::Register("samp_ui_event",Phase::Tick,samp_ui::Set);
+    dispatcher::Register("submit_samp_command",Phase::Tick,[](const json& p){json q=p;q["element"]="chat";q["event"]="command";return samp_ui::Set(q);});
     dispatcher::Register("invoke_samp_headmove",Phase::Tick,samp_headmove::Invoke);
     dispatcher::Register("set_samp_key",Phase::Tick,SampSet);
     dispatcher::Register("release_samp_key",Phase::Direct,SampRelease);

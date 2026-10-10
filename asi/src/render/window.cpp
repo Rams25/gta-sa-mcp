@@ -257,6 +257,18 @@ std::vector<WindowedMode> WindowedModes()
         out.push_back({i,modes[i*5],modes[i*5+1]});
     return out;
 }
+bool ResizeWindowed(int width, int height, int& previousWidth, int& previousHeight)
+{
+    if (!GetConfig().windowed || !GetConfig().noActivate || !game::InGame() || !g_window || width<640 || width>1920 || height<480 || height>1080) return false;
+    DWORD pid=0;GetWindowThreadProcessId(g_window,&pid);if(pid!=GetCurrentProcessId())return false;
+    RECT old{};if(!GetClientRect(g_window,&old))return false;
+    previousWidth=old.right;previousHeight=old.bottom;
+    ProtectDesktop();
+    // Windowed native creation may request 0x0 back buffers, which means current
+    // client size. Resize the actual owned window; its normal WM_SIZE path runs.
+    const BOOL result=SetWindowPos(g_window,nullptr,0,0,width,height,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE|SWP_FRAMECHANGED);
+    ProtectDesktop();return result!=FALSE;
+}
 bool ResetCurrentWindowedMode(int requestedMode)
 {
 	// Test command, game thread only. Use GTA's full video-mode lifecycle, not a

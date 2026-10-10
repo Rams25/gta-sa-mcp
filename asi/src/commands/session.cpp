@@ -63,6 +63,14 @@ json ChangeWindowedMode(const json& p) {
     if(!window::ResetCurrentWindowedMode(static_cast<int>(mode)))throw CommandError("reset_unavailable","Requires verified native mode,640..1920x480..1080,in-game windowed/no_activate");
     return {{"previous_mode_index",previous},{"requested_mode_index",mode},{"reset_calls",window::ResetCount()-before},{"hresult",window::LastResetResult()},{"scope","native windowed mode request; check reset history and restore previous index; no exclusive fullscreen"}};
 }
+json ResizeWindowed(const json& p) {
+    if(!p.contains("width") || !p.contains("height") || !p["width"].is_number_integer() || !p["height"].is_number_integer())throw CommandError("invalid_params","Integer width and height required");
+    const auto w=p["width"].get<long long>(),h=p["height"].get<long long>();
+    if(w<640 || w>1920 || h<480 || h>1080)throw CommandError("invalid_params","Dimensions outside640..1920x480..1080");
+    int oldW=0,oldH=0;
+    if(!window::ResizeWindowed(static_cast<int>(w),static_cast<int>(h),oldW,oldH))throw CommandError("resize_unavailable","Requires own game window and windowed/no_activate");
+    return {{"previous_width",oldW},{"previous_height",oldH},{"requested_width",w},{"requested_height",h},{"scope","Owned window resized without activation; native WM_SIZE processing may be deferred. Verify later status/capture dimensions and restore previous dimensions."}};
+}
 json ResetWindowed(const json&)
 {
 	const unsigned before = window::ResetCount();
@@ -76,6 +84,7 @@ json ResetWindowed(const json&)
 
 void RegisterSessionCommands()
 {
+	dispatcher::Register("resize_windowed_client", Phase::Tick, ResizeWindowed);
 	dispatcher::Register("get_status", Phase::Direct, GetStatus);
 	dispatcher::Register("get_windowed_modes", Phase::Tick, WindowedModes);
 	dispatcher::Register("change_windowed_mode", Phase::Tick, ChangeWindowedMode);

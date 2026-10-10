@@ -29,6 +29,7 @@ struct ResetRecord
 std::vector<ResetRecord> ResetHistory();
 unsigned ResetCount();
 long LastResetResult();
+bool ResizeWindowed(int width, int height, int& previousWidth, int& previousHeight);
 bool ResetCurrentWindowedMode(int requestedMode = -1);
 struct WindowedMode { int index, width, height; };
 std::vector<WindowedMode> WindowedModes();

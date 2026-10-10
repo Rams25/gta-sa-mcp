@@ -2,6 +2,8 @@
 import { tool, vec3, number, integer, boolean, entityRef, objectId } from './schema.js';
 
 export default [
+  tool('submit_samp_command', 'Submit fixed /help, /shop or /kill through the actual SA-MP chat edit control and ProcessInput. Game thread, exact build pin, no OS input. Requires no visible dialog.', {text:{type:'string',enum:['/help','/shop','/kill']}}, ['text']),
+  tool('samp_ui_event', 'Actual native list keyboard/mouse events or dialog keyboard acceptance. Exact build pin; no OS input. Mouse coordinates are relative to the owning DXUT dialog, not the desktop. Double-click performs down/up/double-click/up through HandleMouse; inspect server response.', {element:{type:'string',enum:['dialog','scoreboard']},event:{type:'string',enum:['accept','cancel','key','wheel','double_click']},key:{type:'string',enum:['HOME','END','UP','DOWN','PAGEUP','PAGEDOWN']},x:{type:'integer',minimum:0,maximum:1920},y:{type:'integer',minimum:0,maximum:1080},steps:{type:'integer',minimum:-10,maximum:10}}, ['element','event']),
   tool('set_samp_ui', 'Fixed per-process SA-MP UI dispatch on the game thread, exact-build allowlist. Scoreboard/chat call the real open/close methods; help calls the original help routine and closes only local help. Netstats holds F5 polling for a bounded lease, then releases. Requires windowed/no_activate; never sends desktop input. Inspect capture for visible acceptance.', {
     element: { type: 'string', enum: ['scoreboard', 'chat', 'help', 'netstats'] },
     open: boolean('Open or close the selected UI.'),

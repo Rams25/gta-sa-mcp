@@ -22,6 +22,7 @@ for path in [a.original]+a.candidate:
   return found[0]
  funcs={'score_open':0x6ee10,'score_close':0x6e410,'chat_open':0x68ec0,'chat_close':0x68fc0,'help_open':0x6b570,'help_close':0x6f2a0} if original else {
  'score_open':sym('?Show@CScoreBoard@@'),'score_close':sym('?Hide@CScoreBoard@@'),'chat_open':sym('?Enable@CCmdWindow@@'),'chat_close':sym('?Disable@CCmdWindow@@'),'help_open':sym('?ShowHelpDialog@@',True),'help_close':sym('?Hide@CDialog@@')}
+ funcs.update({'chat_submit':0x69410,'edit_text':0x85000,'list_key':0x8a500,'list_mouse':0x8a6e0,'dialog_key':0x60de0,'window_message':0x610d0} if original else {'chat_submit':sym('?ProcessInput@CCmdWindow@@'),'edit_text':sym('?SetText@CDXUTEditBox@@'),'list_key':sym('?HandleKeyboard@CDXUTListBox@@'),'list_mouse':sym('?HandleMouse@CDXUTListBox@@'),'dialog_message':sym('?MsgProc@CDialog@@')})
  globals={'score':0x2ac9dc,'chat':0x2aca14,'dialog':0x2ac9e0} if original else {'score':sym('?pScoreBoard@@'),'chat':sym('?pCmdWindow@@'),'dialog':sym('?pDialog@@')}
  reloc=[e.rva for b in getattr(pe,'DIRECTORY_ENTRY_BASERELOC',[]) for e in b.entries if e.type==3]
  checked={}
