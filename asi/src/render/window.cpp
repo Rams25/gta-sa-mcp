@@ -201,6 +201,14 @@ HWND WINAPI OnCreateWindowExA(DWORD exStyle, LPCSTR className, LPCSTR title, DWO
 void ProtectDesktop()
 {
 	if (!GetConfig().noActivate) return;
+	// DirectInput has its own USER32 cursor imports, independent of GTA's IAT.
+	// Patch only an already-loaded module in this process; do not load/acquire
+	// a device or issue even a NULL ClipCursor request to the shared desktop.
+	if (HMODULE input = GetModuleHandleW(L"dinput8.dll"))
+	{
+		mem::HookModuleImport(input, "user32.dll", "ClipCursor", reinterpret_cast<void*>(&IgnoreClip));
+		mem::HookModuleImport(input, "user32.dll", "SetCursorPos", reinterpret_cast<void*>(&IgnoreCursorPos));
+	}
 	// Restrict interception to these processes' modules, never user32 globally.
 	// Even a NULL ClipCursor request is ignored: another app may own confinement.
 	for (HMODULE module : {GetModuleHandleW(nullptr), GetModuleHandleW(L"samp.dll")})
