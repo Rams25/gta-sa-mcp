@@ -1,6 +1,7 @@
 // Commands about the plugin itself; answered without waiting for the game thread.
 #include "common.hpp"
 #include "../render/window.hpp"
+#include "../core/config.hpp"
 #include "samp_pickup_fixture.hpp"
 
 
@@ -22,6 +23,17 @@ const char* StateName(int state)
 	}
 }
 
+json SetWindowVisibility(const json& p) {
+    if(!GetConfig().windowed || !GetConfig().noActivate)throw CommandError("protected_window_required","Requires windowed/no_activate");
+    const std::string state=p.value("state","");
+    if(state!="minimize" && state!="restore")throw CommandError("invalid_params","Fixed minimize or restore required");
+    HWND hwnd=game::At<HWND>(0xC97C1C);DWORD owner=0;
+    if(!IsWindow(hwnd) || !GetWindowThreadProcessId(hwnd,&owner) || owner!=GetCurrentProcessId())throw CommandError("own_window_required","No owned GTA window");
+    const bool before=IsIconic(hwnd)!=FALSE;
+    if(!ShowWindowAsync(hwnd,state=="minimize"?SW_SHOWMINNOACTIVE:SW_SHOWNOACTIVATE))throw CommandError("window_request_failed","Window state request failed");
+    return {{"requested",state},{"was_minimized",before},{"scope","asynchronous owned-window state, no activation; confirm get_status"}};
+}
+
 json GetStatus(const json&)
 {
 	const int state = game::GameState();
@@ -39,6 +51,7 @@ json GetStatus(const json&)
 		{ "plugin", "gta-sa-mcp" },
 		{ "version", GTA_SA_MCP_VERSION },
 		{ "pid", static_cast<unsigned>(GetCurrentProcessId()) },
+        { "window_minimized", IsIconic(game::At<HWND>(0xC97C1C))!=FALSE },
 		{ "game_state", StateName(state) },
 		{ "ready", game::InGame() },
 		{ "frame", dispatcher::FrameCount() },
@@ -88,6 +101,7 @@ void RegisterSessionCommands()
 	dispatcher::Register("samp_dropped_pickup_fixture", Phase::Tick, samp_pickup_fixture::Invoke);
 	dispatcher::Register("resize_windowed_client", Phase::Tick, ResizeWindowed);
 	dispatcher::Register("get_status", Phase::Direct, GetStatus);
+    dispatcher::Register("set_window_visibility",Phase::Direct,SetWindowVisibility);
 	dispatcher::Register("get_windowed_modes", Phase::Tick, WindowedModes);
 	dispatcher::Register("change_windowed_mode", Phase::Tick, ChangeWindowedMode);
 	dispatcher::Register("reset_windowed_device", Phase::Tick, ResetWindowed);

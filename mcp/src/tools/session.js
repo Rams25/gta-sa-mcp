@@ -45,6 +45,7 @@ async function launch(bridge, args) {
 }
 
 export default [
+  tool('set_window_visibility', 'Minimize or restore only the owned GTA window without activation. Direct command remains available while rendering is paused. Verify get_status.window_minimized.', {state:{type:'string',enum:['minimize','restore']}}, ['state']),
   tool('resize_windowed_client', 'Resize only the selected game process window, preserving desktop position, focus and z-order. Requires windowed/no_activate. Native WM_SIZE processing can be deferred: verify subsequent capture dimensions, then restore previous_width/previous_height.', {width:{type:'integer',minimum:640,maximum:1920},height:{type:'integer',minimum:480,maximum:1080}}, ['width','height']),
   tool('begin_roadsign_trace',
     'Opt-in GTA US1.0 diagnostic: verify and install eleven roadsign CALL observers, then start a fresh 512-event mapped trace file. ' +

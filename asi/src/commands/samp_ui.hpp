@@ -2,13 +2,30 @@
 #include "samp_headmove.hpp"
 #include "samp_ui_pins.hpp"
 #include "../core/config.hpp"
+#include "../core/memory.hpp"
 #include "../render/window.hpp"
 namespace samp_ui {
+// Temporary, same-thread cursor input to the native hit-test. No desktop cursor move.
+inline thread_local bool fixedCursorActive=false;
+inline thread_local POINT fixedCursor{};
+inline BOOL WINAPI FixedCursor(LPPOINT p) {
+    if(fixedCursorActive && p){*p=fixedCursor;return TRUE;}
+    return GetCursorPos(p); // This ASI import is never replaced.
+}
+struct CursorScope {
+    HMODULE module; void* previous;
+    CursorScope(HMODULE m, POINT p):module(m),previous(nullptr) {
+        fixedCursor=p;fixedCursorActive=true;
+        previous=mem::HookModuleImport(module,"user32.dll","GetCursorPos",reinterpret_cast<void*>(&FixedCursor));
+        if(!previous)fixedCursorActive=false;
+    }
+    ~CursorScope(){fixedCursorActive=false;if(previous)mem::HookModuleImport(module,"user32.dll","GetCursorPos",previous);}
+};
 inline json Set(const json& p) {
     using samp_headmove::Require; using samp_headmove::Read;
     Require(p.contains("element") && p["element"].is_string() && (p.contains("event") || (p.contains("open") && p["open"].is_boolean())),"element and boolean open required");
     const std::string element=p["element"]; const bool open=p.value("open",false);
-    Require(element=="scoreboard" || element=="chat" || element=="help" || element=="netstats" || element=="hud_hidden" || element=="textdraw" || element=="dialog" || element=="editor","Unsupported fixed UI element");
+    Require(element=="scoreboard" || element=="chat" || element=="help" || element=="netstats" || element=="hud_hidden" || element=="textdraw" || element=="dialog" || element=="editor" || element=="object_selection","Unsupported fixed UI element");
     Require(GetConfig().windowed && GetConfig().noActivate,"Requires windowed/no_activate desktop protection");
     window::ProtectDesktop();
     HMODULE module=GetModuleHandleW(L"samp.dll");Require(module!=nullptr,"SA-MP not loaded");
@@ -62,13 +79,29 @@ inline json Set(const json& p) {
         if(element=="editor") {
             Require(GetConfig().pipe=="gta-sa-mcp-original-trial" || GetConfig().pipe=="gta-sa-mcp-rebuilt-trial","Editor probe requires isolated trial pipe");
             Require(nativeLayout,"This build retains the rewritten editor; native editor probe unavailable");
-            Require(event=="mode" || event=="adjust" || event=="finish","Fixed editor mode/adjust/finish event required");
+            Require(event=="mode" || event=="adjust" || event=="finish" || event=="icon","Fixed editor mode/adjust/finish event required");
             BYTE* editor=original?object("editor"):reinterpret_cast<BYTE*(__cdecl*)()>(function("editor_get"))();
             Require(editor!=nullptr,"Native editor unavailable");
             DWORD active=0,target=0;int mode=0;Read(editor+0x80,&active,4);Read(editor+0x78,&target,4);Read(editor+0x7c,&mode,4);
             Require(active!=0 && (target==1 || target==2),"Start editing through the isolated server fixture first");
             editorResult={{"before_mode",mode},{"target_type",target}};
-            if(event=="mode") {
+            if(event=="icon") {
+                const std::string icon=p.value("icon","");
+                const int hovered=icon=="move"?3:icon=="rotate"?4:icon=="scale"?5:icon=="save"?10:-1;
+                Require(hovered>=0,"Fixed move/rotate/scale/save icon required");
+                BYTE dragging=0,allowScale=0;Read(editor+0xA3,&dragging,1);Read(editor+0xA2,&allowScale,1);
+                Require(!dragging,"Release editor drag before icon probe");
+                Require(hovered!=5 || allowScale,"Scale icon unavailable for this target");
+                auto handler=function("editor_message");int previous=0;Read(editor+0x113,&previous,4);
+                SIZE_T written=0;Require(WriteProcessMemory(GetCurrentProcess(),editor+0x113,&hovered,4,&written)&&written==4,"Icon hover seed failed");
+                const bool handled=original?reinterpret_cast<int(__thiscall*)(void*,UINT,WPARAM,LPARAM)>(handler)(editor,WM_LBUTTONUP,0,0)!=0:
+                    reinterpret_cast<bool(__thiscall*)(void*,UINT)>(handler)(editor,WM_LBUTTONUP);
+                WriteProcessMemory(GetCurrentProcess(),editor+0x113,&previous,4,&written);
+                Require(handled,"Native editor did not consume icon release");
+                Read(editor+0x7c,&mode,4);Read(editor+0x80,&active,4);
+                editorResult["icon"]=icon;editorResult["applied_mode"]=mode;editorResult["active"]=active;
+                editorResult["hover_seeded"]=true;
+            } else if(event=="mode") {
                 Require(p.contains("mode") && p["mode"].is_number_integer(),"Integer editor mode required");
                 const int requested=p["mode"].get<int>();Require(requested>=0 && requested<=2,"Editor mode outside0..2");
                 reinterpret_cast<void(__thiscall*)(void*,int)>(function("editor_mode"))(editor,requested);
@@ -96,6 +129,34 @@ inline json Set(const json& p) {
                 reinterpret_cast<void(__thiscall*)(void*,int)>(function("editor_finish"))(editor,result=="save"?1:0);
                 Read(editor+0x80,&active,4);Require(active==0,"Editor did not finish");editorResult["result"]=result;
             }
+        } else if((element=="textdraw" || element=="object_selection") && event=="click") {
+            Require(nativeLayout,"Textdraw hit-test requires native layout");
+            Require(GetConfig().pipe=="gta-sa-mcp-original-trial" || GetConfig().pipe=="gta-sa-mcp-rebuilt-trial","Selection probe requires isolated pipe");
+            const int x=p.value("x",-1),y=p.value("y",-1);
+            int width=0,height=0;Read(reinterpret_cast<void*>(0xC17044),&width,4);Read(reinterpret_cast<void*>(0xC17048),&height,4);
+            Require(x>=0 && y>=0 && x<width && y<height && width<=3840 && height<=2160,"Textdraw point outside current raster");
+            HWND hwnd=nullptr;Read(reinterpret_cast<void*>(0xC97C1C),&hwnd,4);Require(IsWindow(hwnd),"Game window unavailable");
+            POINT point{x,y};Require(ClientToScreen(hwnd,&point),"Textdraw coordinate conversion failed");
+            BYTE* selector=nullptr;
+            if(element=="object_selection") {
+                selector=original?object("object_selection"):base+pin["globals"]["object_selection_data"].get<DWORD>();
+                DWORD active=0;Read(selector,&active,4);Require(active!=0,"Start object selection with server fixture first");
+            } else if(original)selector=object("selection");
+            else {BYTE* pools=nullptr;Read(object("netgame")+0x3DE,&pools,4);Require(pools!=nullptr,"NetGame pools unavailable");Read(pools+0x20,&selector,4);}
+            Require(selector!=nullptr,"Textdraw selector unavailable");
+            const bool objectSelection=element=="object_selection";
+            auto process=function(objectSelection?"object_selection_process":"selection_process");auto click=function(objectSelection?"object_selection_click":"selection_click");
+            CursorScope cursor(module,point);Require(cursor.previous!=nullptr,"Native cursor import unavailable");
+            reinterpret_cast<void(__thiscall*)(void*)>(process)(selector);
+            if(original || objectSelection)reinterpret_cast<int(__thiscall*)(void*,UINT,WPARAM,LPARAM)>(click)(selector,WM_LBUTTONUP,0,MAKELPARAM(x,y));
+            else reinterpret_cast<bool(__thiscall*)(void*,int,int)>(click)(selector,x,y);
+            if(objectSelection) {WORD hovered=0xFFFF;Read(selector+4,&hovered,2);editorResult["selected_object"]=hovered;}
+            editorResult.update({{"native_hit_test",true},{"x",x},{"y",y},{"scope","temporary per-process cursor import; desktop cursor unchanged"}});
+        } else if(element=="chat" && event=="key") {
+            const std::string key=p.value("key","");
+            const DWORD vk=key=="UP"?VK_UP:key=="DOWN"?VK_DOWN:key=="PAGEUP"?VK_PRIOR:key=="PAGEDOWN"?VK_NEXT:0;
+            Require(vk!=0,"Chat key must be UP/DOWN/PAGEUP/PAGEDOWN");
+            reinterpret_cast<int(__cdecl*)(DWORD)>(function("chat_key"))(vk);
         } else if(event=="type_fixture") {
             Require(element=="dialog","Typing fixture is limited to visible server dialog");
             BYTE* owner=object("dialog");BYTE visible=0;Read(owner+0x28,&visible,1);Require(visible!=0,"Dialog not visible");
@@ -119,7 +180,10 @@ inline json Set(const json& p) {
         } else if(event=="command") {
             Require(element=="chat","Command requires chat");
             const std::string command=p.value("text","");
-            Require(command=="/help" || command=="/shop" || command=="/kill","Only fixed test commands allowed");
+            Require(command=="/help" || command=="/shop" || command=="/kill" || command=="/timestamp" ||
+                command=="/fontsize -3" || command=="/fontsize 0" || command=="/fontsize 5" ||
+                command=="/pagesize 10" || command=="/pagesize 20" || command=="W chat fixture","Only fixed test commands allowed");
+            Require(GetConfig().pipe=="gta-sa-mcp-original-trial" || GetConfig().pipe=="gta-sa-mcp-rebuilt-trial","Command probe requires isolated pipe");
             BYTE* dialog=object("dialog");BYTE visible=0;Read(dialog+0x28,&visible,1);Require(!visible,"Close dialog before submitting chat command");
             BYTE* chat=object("chat");BYTE* edit=nullptr;Read(chat+8,&edit,4);Require(edit!=nullptr,"Chat edit control unavailable");
             reinterpret_cast<void(__thiscall*)(void*)>(function("chat_open"))(chat);
