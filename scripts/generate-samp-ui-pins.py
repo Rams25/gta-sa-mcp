@@ -46,6 +46,33 @@ for path in [a.original]+a.candidate:
   assert hex(position) in asm['scroll'],(path,'scroll')
   globals.update({'chat_window':0x2aca10,'plate_renderer':0x2aca30} if original else {'chat_window':sym('?pChatWindow@@'),'plate_renderer':sym('?pLicensePlate@@')})
   telemetry={'array':array,'count':count,'selected':selected,'scroll':scroll,'position':position,'witness':witness}
+ # Review14 read-only snapshot extension. Original SHA is fixed above; require
+ # byte witnesses before permitting the common packed ABI, and map-pin owners.
+ snapshot_witness={'manager_ctor':(0xd890,96),'manager_owner':(0x11dd3,78),
+ 'progress_update':(0x6a720,740),'progress_owner':(0xdc4c,16),
+ 'attached_set':(0xb079e,24),'attached_remove':(0xaea50,96),
+ 'remote_sync':(0x16da0,195),'remote_animation':(0x16452,100),
+ 'local_reset':(0x2f50,70),'jetpack':(0xac9e0,54),'player_get':(0x10f0,32),
+ 'bars':(0x6cd4f,72),'ped_action':(0xaba60,12)} if original else {}
+ if original:
+  review={k:'\n'.join(i.mnemonic+' '+i.op_str for i in md.disasm(pe.get_data(rva,n),rva)) for k,(rva,n) in snapshot_witness.items()}
+  checks={'manager_ctor':['0x213','0x221','0x21f','0x220','0x21b'],
+   'manager_owner':['0x102aca28'],'progress_owner':['0x102ac9e8'],
+   'progress_update':['0x2c','0x24c','0x250','0x25c','[esi + 9]','[esi + 0xa]','[esi + 0xe]'],
+   'attached_set':['0x34','0x74','0xd'],'attached_remove':['0x4c','0x27c'],
+   'remote_sync':['0x1b0','0x1ac','0x18','0x1a'],
+   'remote_animation':['0x1c0','0x1cd'],'local_reset':['0x100','0x104'],
+   'jetpack':['0x2a4','0x46c','0x47c','0x10','0x8705c4'],
+   'ped_action':['0x2a4','0x530'],'player_get':['0x26','[eax + 8]'],'bars':['0x1011c674','0x42c80000']}
+  for k,needles in checks.items():
+   for token in needles:assert token in review[k],(k,token)
+  assert pe.get_data(0x11c674,4)==bytes.fromhex('4fecc43e')
+  globals.update({'model_progress':0x2ac9e8,'artwork_manager':0x2aca28})
+ else:
+  globals.update({'model_progress':sym('?pModelProgress@@'),'artwork_manager':sym('?Manager@?')})
+ # Existing older pins intentionally lack this opt-in and return null extensions.
+ if telemetry is not None:telemetry.update({'snapshot_abi':1,'manager_indirect':original,
+  'snapshot_witness':{k:{'rva':v[0],'size':v[1]} for k,v in snapshot_witness.items()}})
  reloc=[e.rva for b in getattr(pe,'DIRECTORY_ENTRY_BASERELOC',[]) for e in b.entries if e.type==3]
  checked={}
  for name,rva in funcs.items():
